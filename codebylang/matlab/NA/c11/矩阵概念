@@ -1,0 +1,38 @@
+
+
+c1U1+...cnUn=0
+
+while c1 ... cn ==0 才成立则U1...Un线性无关
+
+
+AX = lambda X
+
+线性变换A --> lambda X
+
+(A-lambdaI)X=0
+
+det(A-lambdaI)= 0
+
+得到 n阶多项式
+
+lambda1 。。。lambdak
+V1... Vk
+
+
+Y'A= lambda Y'
+左特征值
+
+考虑将矩阵对角化则容易求出特征值特征向量
+
+
+K非奇异
+B = K^-1AK
+则A与B相似
+
+A         B
+lambda     lambda
+V         K^-1V
+
+T=P^-1AP  若T为上三角 对角线元素为A的特征值
+
+

@@ -1,0 +1,349 @@
+高峰|李彬
+/x
+	对y=2^i取余可以用&位运算实现such as y=8,&7
+	浮点是不精确，不要使用==操作
+x/
+
+0
+	用户代码有用户栈，内核代码有内核栈，栈不同因此syscall从用户->内核通过寄存器传递参数而非栈传参
+文件IO
+	广义的文件指Linux管理的所有对象，广义的文件利用VFS以文件系统形式挂载在内核
+	open 
+		int fd关联一个file结构
+		O_DIRECT 直接IO不使用vfs cache
+		create是open的简单封装，不是必须的
+		申请file时，会填写file->f_op
+	close
+		减file结构的引用计数，为0时调用f_op.release
+		lsof命令可查找进程未关闭的fd
+	read/write/aio_...
+		fd ->file -> pos,f_op.read/write/aio_...(从哪读，如何读)
+		写操作一般会使用锁保护
+	dup/...
+		文件描述符复制
+		申请或指定一个fd关联另一个fd的files，即dup后两个fd关联同一个files结构
+	
+	数据同步
+		操作系统会对文件的 I/O 操作进行缓存处理
+			读操作,如果要读取的内容已经存在于文件缓存中,就直接读取文件缓存
+			写操作,会先将修改提交到文件缓存中,在合适的时机,操作系统才会将改动提交到磁盘上
+		sync/fsync/fdatasync
+			linux sync是阻塞调用和APUE描述不同
+			唤醒flush线程 flush 脏缓存到磁盘 : 同步数据
+ 			同步inode  : 同步元数据
+ 			内存缓存->磁盘缓存，不能保证真正写到磁盘上
+ 	元数据 stat
+ 		文件元数据存储在inode中，stat读取inode到struct stat
+ 		没有inode的文件系统need生成虚拟的inode供Linux内核使用
+标准IO
+	进程创建时自动创建fd 0,1,2，标准C库静态定义了FILE* stdin,stdout,stderr 和 fd 0,1,2关联	
+	c库IO接口引入了缓存
+	fdopen fd->FILE
+	fileno FILE->fd
+	
+	/x
+		Linux 文件IO
+
+			fwrite          write         内核线程检测脏页写磁盘，提交到磁盘IO队列  IO调度程序 磁盘控制器
+ 	应用buffer->C lib buffer->|内核buffer->IO队列  ->驱动|->磁盘设备缓存->磁盘									
+								      内核
+	x/	
+	
+进程环境
+	在操作系统环境下的c编程是需要c标准库提供运行时支持的
+	程序员主要实现main函数，main之前的初始化和main之后的析构都调用了c库的运行时支持函数
+	而内核编程是不能使用c库的
+	
+	长跳转
+		setjmp 保存栈的上下文到jmp_buf结构中，即保存相关寄存器到jmp_buf
+		longjmp 从jmp_buf读取栈的上下文实现长跳转,即跳转到jmp_buf记录的pc位置，以及将栈指针更改为jmp_buf记录的值
+		glibc实现的setjmp和longjmp只保存和恢复了六个寄存器，
+		
+进程
+	pid_t getpid
+	pid_t getppid linux提供获取父进程pid
+	进程pid分配算法
+		使用位图记录进程id的使用，上次分配的使用last_pid记录，下次从last_pid+1开始找，到尾部后回滚到300开始,小于300的pid被系统占用
+		sysctl kernel.pid_max,可查看最大pid
+		
+	pid_t 进程组id
+	pid_t 会话id
+	
+	/x
+		会话是公司，进程组是部分，进程是员工
+		所有员工的共同祖先是init
+	x/	
+	当用户shell登录Linux时，用户登录的shell进程是会话首进程,会话id就是首进程id
+	
+	fork 
+		内存COW
+		fd:file*->struct file,子进程钱拷贝父进程file* ,因此父子进程指向同一个struct file结构
+	daemon 
+		glibc提供daemon(0,0)函数经进程转为守护进程
+	waitpid
+		类似wait
+		区别wait
+			提供trywait
+			可等待子进程暂停和恢复,LINUX提供SIGSTOP,SIGCONT信号，来完成进程内暂停和恢复
+	exec系列函数都基于execve系统调用
+		内核中有struct linux_binfmt链表结构，每一个linux_binfmt可识别一种可执行文件格式
+		内核读取可执行文件，分析magic并寻找对应的linux_binfmt
+	system函数	
+		system创建了shell shell创建子进程执行
+		执行时需要忽略SIGCHLD,SIGQUIT,SIGINT
+
+进程调度	
+	/proc/pid/status 进程状态	
+		R running
+		S 可中断睡眠
+		D 不可中断睡眠
+		T stopped
+		t trace
+		Z zombie
+		X dead
+	pidstat 统计进程cpu使用情况
+	睡眠
+		可中断睡眠 睡眠时可接受未屏蔽的信号
+		不可中断睡眠 
+			khungtaskd 内核线程会定期检测失控的不可中断睡眠进程打印警告信息
+			cat /proc/pid/wchan 查看进程等待信息
+ 				/proc/pid/stack 查看stack，可推测等待信息
+ 		可杀死睡眠状态 介于可中断睡眠不可中断睡眠之间可响应致命信号，而忽略其它信号
+ 		
+	 	等待队列
+	 		内核双向链表
+	 			__wait_queue_head<->__wait_queue->__wait_queue<->...
+	 			struct __wait_queue_head{
+	 				一个锁
+	 				指针<->
+	 			}
+	 			
+	 			struct __wait_queue{
+	 				flags 标志唤醒一个还是唤醒一群
+	 				private ->task_struct的指针
+	 				func   唤醒函数
+	 			}
+	 		
+	 		睡眠 
+	 			添加进程到等待队列
+	 			设置进程状态为可中断睡眠/不可中断睡眠
+	 			检查条件是否满足，不满足调用schedule让出CPU，等待被唤醒
+	 			
+	 			内核封装了一些wait_event_*宏来完成睡眠
+	 		唤醒 
+	 			内核封装了一部分对应的wake_up_*宏来唤醒进程，唤醒系列宏最终调用__wake_up实现唤醒
+	 				...唤醒1个
+	 				..._nr 唤醒nr个
+	 				..._all 唤醒所有	
+	 			__wake_up
+	 				遍历等待队列，对于需要唤醒的进程调用节点注册的回调func
+	 				默认的回调func为 default_wake_function
+	 				
+ 	TASK_STOPPED 四种信号使进程暂停运行的状态,收到SIGCONT信号恢复运行
+ 	TASK_TRACE 被跟踪状态，只有调试进程通过ptrace系统调用下达指令或调试进程退出才能恢复运行状态
+ 	
+ 	进程调度只和TASK_RUNNING进程有关
+ 		Linux每个CPU都有自己的运行队列，可以避免竞争，提高缓存命中率
+ 		load_banlance在不同CPU运行队列间迁移进程
+ 		schedule
+ 			选择下一个执行进程
+ 			上下文切换
+ 		
+ 		内核支持四种调度类
+ 			停止类>实时类>完全公平类>空闲类
+ 			
+ 			停止类 停止CPU运行进行任务迁移 每CPU一个
+ 			空闲类 cpu停机，每CPU一个
+ 			完全公平类CFS
+ 				优先级
+ 					weight=1024/(1.25^nice)
+ 					nice-1,大概多获得10%的运行时间
+ 					 						
+ 				动态时间片
+ 					调度延迟 内核尽量保证在调度延迟内每一个进程至少运行一次
+ 					最小时间片 进程运行时间片最小粒度
+ 						当可运行进程数>调度延迟/最小时间片，只能保证最小时间片，调度周期=最小时间片*进程数
+ 						当可运行进程数<=调度延迟/最小时间片，可保证调度延迟，调度周期=调度延迟
+ 						
+	 				进程时间片=调度周期*(进程权重/进程权重和)
+	 					优先级高的进程获得更大的时间片
+	 					假设每个进程运行权重一致计算出一个运行周期，申请运行周期时大家一视同仁
+	 					根据权重将运行周期切分为不同长度的时间片，申请后不公平分配	
+	 					每一个进程在运行周期内被调度一次，避免饥饿	
+	 					/x
+	 					县长申请补助，向上报100人一个人100
+	 					补助发送10000到县长处，县长关系好的分配>100,县长关系不好的<100
+	 					x/	  				
+	 					
+	 			下一个进程选择
+	 				每一轮调度周期都会计算分配一次时间片
+	 				内核周期性检查进程时间片，时间片用完则发生进程上下文切换，运行时间小于最小时间片不允许切换
+	 				时间记帐
+	 					记录进程运行过的时间，选择时间最少的为下一个
+	 					虚拟时间
+	 						若采用实际占用cpu运行的时间，则优先级高的时间片长则运行时间长，则优先级低的会频繁被调度运行，因此虚拟时间引入了权重
+	 							虚拟运行时间=真实运行时间*(1024/进程权重)
+	 							/x
+	 								进程A w=1024 运行15ms ->虚拟运行时间15 ms	
+	 								进程B w=335 运行5ms ->虚拟运行时间 1024/335*5大约 15ms	
+	 							x/
+	 						内核使用红黑树加速选择最小虚拟运行时间的进程
+	 				
+	 					新进程加入
+	 						若新进程加入虚拟时间为0则相当长时间会保持调度优势，被频繁调度,不合理
+	 						子进程虚拟运行时间=max(父进程虚拟运行时间，CFS运行队列最小虚拟运行时间)
+	 						CFS运行队列最小虚拟运行时间，提供了一个时间基准
+	 						/proc/sys/kernel/sched_child_runs_first 
+	 							1 fork后子进程先运行，必要时交换父子进程vruntime来保证子进程的vruntime小于父进程的
+	 							0 父进程先	
+	 										
+	 					休眠进程唤醒
+	 						如果休眠进程的vruntime如何保持不变则，长时间休眠唤醒后vruntime会远小于运行进程，因此会被频繁调度
+	 						因此休眠进程的vruntime需要一定的补偿
+	 					
+	 					
+	 		cgroups
+	 			在cgroup文件系统创建目录，创建目录会动生成一些文件，每个目录是一个进程组
+	 			将进程pid写入目录下tasks文件中，则进程加入此进程组
+	 			向不同的文件写入配置可实现进程组物理资源(cpu,内存，网络，磁盘IO等)的使用限制
+	 		实时进程
+	 			先进先出策略
+	 				始终占用CPU直到
+	 					进程终止
+	 					主动yeild 
+	 					被更高优先级抢占
+	 			时间片轮转
+	 				相同优先级流量执行，使用固定长度时间片
+	 				始终占用CPU直到
+	 					时间片耗尽
+	 					进程终止
+	 					主动yield
+	 					被更高优先级抢占	
+	 		CPU亲和力
+	 			进程在不同cpu运行队列迁移会造成缓存失效，Linux提供非标准系统调用绑定cpu
+信号
+	一种软中断
+	进程A产生信号-> 内核 内核将信号递送给进程前，信号为pending状态称为未决信号 ->递送到进程B
+	
+	信号分类
+		不可靠信号[1,31] 继承自Unix系统，使用位图记录不重复递送，信号不排队			
+			oneshot特性
+				注册信号处理函数，处理一次后恢复为SIG_DFL System V特性
+			当前信号正在处理
+				当前信号再次发生,信号处理函数重入 System V特性
+				只屏蔽当前信号,其它信号可打断当前信号处理函数 BSD特性 
+			系统调用重启
+				系统调用执行中，被信号中断，一般会中断执行，返回失败errno=EINTR
+				Linux提供SA_RESTART标志位来告诉内核是否重启系统调用，但是不是所有的系统调用都能重启
+		可靠信号 内核使用队列维护
+	sigaction			
+		Linux下提供sigaction函数安装信号处理函数语义明确功能强大
+	信号发送
+		kill 发送信号到进程
+		tgkill 向进程的线程发送信号
+		raise 发送信号到自身,信号处理完成raise才返回
+		sigqueue
+		
+	等待信号
+		pause 挂起等待信号后返回
+		sigsuspend 挂起等待信号，可原子性的设置挂起时屏蔽信号字和返回时恢复信号屏蔽字
+		
+		sigwait 可直接设置等待感兴趣的信号
+		signalfd 可创建一个文件描述符来接受信号，使用read可读取到来的信号，可以被select/poll/epoll <-内核新引入建议使用 
+		
+	!!!异步信号安全 !!!
+		注意使用的函数是否异步信号安全，使用异步信号安全函数
+		轻量级信号处理函数 
+			思想类似于中断推迟到下半部，在信号处理函数中基本只设置标志位，由主程序执行流根据标志位做操作，操作推迟到主程序执行流
+		异步->同步
+			sigwait
+			signalfd 操作系统新引入，建议使用
+			打开管道 信号处理写管道，主程序读取或可使用select/poll/epoll监听
+			
+线程	
+	Linux进程足够轻量，因此线程只是特殊的进程
+	四大bug
+		死锁
+		活锁
+		竞态
+		饥饿
+		
+	task_struct{
+		pid_t pid; task id 
+		pid_t tgid; task 组id,linux下进程和线程都是task,多线程是一个task组,tgid相同
+	}
+	
+	detach
+		joinable的线程退出后需要join操作取得返回信息才能释放资源(类似进程的wait)
+		detach线程退出后，由系统负责释放资源
+	伪共享 缓存以cache line为单位，不同线程的变量安排到不同的cache line可避免伪共享性能损失
+	fork 多线程fork只fork调用线程，其它线程消失
+	
+mmap
+	在进程虚拟地址空间创建内存映射
+		文件映射 内存映射区域关联文件，通过读写内存来读写文件，掩盖文件IO操作
+		匿名映射 不关联文件，得到初始化为0的内存区域
+			共享匿名映射 共享内存用于进程间通信
+			私有匿名映射 用于分配内存
+		posix共享内存
+			shm_open返回fd，然后mmap将共享内存映射到进程地址空间
+			shm_open会打开或创建在/dev/shm/下的文件,posix共享内存可视为基于文件的,she_open是open披了个马甲	
+			/dev/shm 下挂载了一个tmpfs内存文件系统
+				
+	/x
+		linux中匿名映射和system v共享内存 posix共享内存，都基于tmpfs内存文件系统
+		即mmap映射的底层都是一个文件，要么是存在在磁盘上的文件，要么是tmpfs内存文件系统中的文件
+	x/	
+
+
+内存锁定
+	进程虚拟地址空间以页面为单位，虚拟页面可能对应物理页面，也可能不对应，若虚拟页面的物理页面不存在则引发缺页中断
+	posix定义了接口可锁定进程的物理页面不被换出到磁盘，进程页面锁定字节数有限制
+		mlock(addr,len) 锁定addr->addr+len地址，自动对齐到页面倍数 <->munlock
+		mlockall(flags) 锁定进程所有页面 <->munlockall
+		mincore 判断内存区域是否位于物理内存
+				
+socket
+	socket创建套接字
+	bind 绑定套接字到地址
+	connect
+		有连接状态的因此发起连接流程中的函数会检查socket的状态
+		...->tcp_connect函数会构造syn报文发送给对端
+	listen
+		申请连接请求队列
+		执行监听
+	accept
+		从连接队列取出第一个连接，并返回一个同于通信的socket
+		
+	send/sendto/sendmsg
+		send 是sendto的特例直接调用了sendto
+		sendto 填写strutc msghdr msg后调用sock_sendmsg发送msg
+				msg是消息结构体，字段msg_iov指向struct iovec结构，iovec结构存储需要发送的消息
+		sendmsg ->_sys_sendmsg->sock_sendmsg->sock->ops->send_msg 调用套接字对应的发送操作
+			复制发送消息从用户空间->内核空间
+			消息加入IO请求队列
+			tcp 发送
+				检查发送大小，大需要分片
+				检查拥塞窗口和发送窗口 0则不能发送
+				nagle算法检查
+				调用ip 发送数据
+	recv/recvfrom/resvmsg
+		tcp 内核有三个接受队列
+			sk_receive_queue 数据包经过检查处理后会保存到这个队列，未检查处理的数据包保存在其它两个队列,真正的接受队列，用户是从此队列取消息的
+			
+			sk_backlog 用户态使用套接字时，内核收到数据包引发软中断
+			prequeue  用户未使用套接字时，内核收到数据包引发软中断
+			/x
+				使用未处理队列是为了尽快让软中断处理过程结束，不在软中断处理数据包
+				使用两个未处理队列是为了避免竞争，用户态占用sock时会访问prequeue,因此将数据保存到sk_backlog
+			x/
+		硬中断到软中断
+			Linux在响应网卡中断时不处理一个数据包就返回而尝试轮询，即中断+轮询降低中断切换开销
+			硬->软，从上半部到下半部
+			
+		数据包到达后在IP层的处理
+			检查，验证数据包
+			将数据包复制一份传递给原始套接字
+				Linux中原始套接字，可以接收TCP/UDP数据包	
+			根据数据包的传输层协议调用对应的传输层API将数据包递送到传输层处理(传输层向ip层注册了自己的API供ip层调用)	
+				传输层协议在不同的套接字hash桶中查找匹配的套接字后递送消息

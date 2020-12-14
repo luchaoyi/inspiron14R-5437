@@ -1,0 +1,105 @@
+/*
+数据传输
+启动配置
+访存合并
+设备占有率
+缓存/共享内存使用率和bank冲突
+分支
+ILP
+设备计算能力
+*/
+双缓冲
+	显存两个缓存区使内存无依赖，一个GPU计算，另一个CPU计算交替
+	  T m0 m1 m0 m1     
+	  1	Ci       
+	  2	K	Ci         
+	  3	Co 	K	Ci      
+	  4	   	Co	K	Ci 
+	  5		   	Co 	K
+      6		  		Co
+多流 
+	宏观看cuda程序分三个阶段 
+		L 数据拷贝 host->device
+		C launch kernel kernel
+		S 数据拷贝 device -> host
+		一个流中的任务是串行的，多个流以流水线方式并行，内核程序和复制引擎并行，数据复制时间被另一个流执行隐藏，提高设备占用率
+		    time 0 1  2 ... 
+		stream 0 L C S L C S ...
+		  		1	L C S L C S ...
+		  		2		L C S L C S ...
+cpu vs gpu 
+	reg少，reg rename，stack<->regfile线程切换 | 大量reg,每个线程使用一组真实reg,不同线程使用不同reg组，线程切换开销小
+	任务队列 - 进程 - 线程 | 流 - kernel - block - wrap(thread是逻辑编码的基本单位，但硬件调度执行最小粒度是wrap)
+							| wrap内线程分支，会执行所有分支的代码，并屏蔽掉不需要的结果
+							|wrap在IO时被挂起，另一个wrap被调度，wrap内不同线程访问连续数据操作会被合并为一次访存
+block(进程)
+	所有wrap执行完毕才撤走释放资源,包含一组wrap,wrap太多被最慢wrap拖累的可能
+	被调度到SM执行，SM能一次调度的block是有限的
+	SM能并行执行的线程也受线程资源使用的约束
+	
+device内存层次
+	reg 局部变量
+		使用影响并行线程数量和block数量
+		不适宜太少/太多
+	共享内存
+		不同线程访问read同一个地址(存储单元)广播
+		不同线程访问不同存储体，无冲突
+		其它方式将会有冲突，一个bank,一个周期只应答一次，因此多个并行个线程访问相同的bank(地址不同的读/写，地址相同的写，)conflict而串行化.	
+	常量内存 - 位于ddr
+		片上高速缓存，自有通道
+		同地址read广播机制
+	全局内存 - ddr 
+		---PCIE---ddr
+		cpu访问 显式阻塞/非阻塞		
+		访问ddr
+			延迟 = 访问ddr得到数据的时间
+			带宽 一次能加载多少数据
+		合并访存
+			连续的线程访问连续的内存块，访存合并为一次内存事务
+		惰性访问
+			a=A[0],使用到a是才取ddr捞A[0]
+	host内存
+		分页内存 <-> 锁页内存 <-> device ddr 
+		锁页内存
+			锁页内存 <-> device ddr 
+			锁定内存不换出，与设备ddr拷贝数据时dma要求必须为锁定内存
+			因此非锁定内存的copy实质是驱动申请了一块主机锁定内存，然后数据被先copy到了锁定内存然后才和device ddr交互
+		零copy内存
+			将锁页内存直接映射到gpu内存空间,无复制，gpu可直接访问,gpu有近的ddr ram 和远端锁页内存
+			适用于少次使用的数据(比如仅使用一次)，无必要拷贝
+
+算术优化
+	#算的更快
+	低精度 SFU
+	查找表线性插值
+	ptx cuobjdump 
+		
+cpu和gpu任务划分
+	cpu和gpu执行会有交错空闲时间，
+	任务规模被分解后特别小的部分有必要launch kernel?还是由CPU计算
+	cpu处理还是掉gpu取决于cpu计算是否快于，内存拷贝+gpu计算时间
+	cpu和gpu也可以协作计算，而不是cpu等待gpu处理
+gpu direct gpu直接和其它设备通信(网卡，其它cpu，gpu等)的技术，不借助cpu不过主机内存
+通信ZeroMq 轻量级通信函数库
+cuda函数库 遵循由用户管理全局内存的原则设计库函数
+
+瓶颈Bottleneck
+	pcie传输 band
+		锁页内存 
+		0 copy内存
+		stream 重叠计算与传输
+		数据压缩*
+	mem io band 共享内存
+	计算band
+		一个包含复杂逻辑判断的gpu 函数 => gpu不擅长复杂逻辑判断，考虑将if-else交给cpu，cpu启动多个kernel
+		更多核拆分...
+		
+二维grid和三维block*
+	grid dim dim3类型，但是dimZ必须为1,因此网格内为二维的包含多个block,使用blockIdx.x/y索引
+	block dim block为三维的包含多个线程,block被包含了多个线程使用threadIdx.x/y/z来索引
+
+硬件原子性*
+	不可分割的操作，不能被打断，一般通过总线锁/缓存锁实现#锁存储	
+	cas 
+		期待旧值没有改变才赋值新值，否则不赋值，cas是自旋锁尝试直到成功
+		aba问题，使用版本号解决

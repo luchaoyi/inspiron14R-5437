@@ -1,0 +1,37 @@
+<cuda专家手册>
+
+-cuda软件层次结构-
+cuda app
+cuda 库
+cuda 运行时API cudaX
+cuda 驱动API  cuX
+cuda 驱动 用户模式
+cuda 驱动 内核模式
+-
+.cu->ptx->cubin	
+	ptx可离线orJIT编译为gpu执行的微码
+	fatbin ptx和cubin的组合，如果可能加载cubin，否则编译ptx
+-
+地址空间
+	主机内存
+		普通主机内存
+		锁页主机内存
+			操作系统为dma设置
+			异步内存复制
+		可共享页锁定内存  
+			页锁定内存所有cuda上下文共享							
+					
+		映射页锁定内存(零拷贝内存)
+			页锁定内存映射到cuda上下文地址空间
+			不用显式复制,gpu直接操作主存
+			
+	设备内存
+		片外显存
+			全局显存
+			常量显存
+			纹理显存
+		片上
+			共享内存
+			寄存器
+			
+kernel<<<gridSize,blockSize,sharedMem,Stream>>>

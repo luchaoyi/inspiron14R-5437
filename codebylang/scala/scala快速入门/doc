@@ -1,0 +1,370 @@
+1.
+scala run in jvm,面向对象+函数式编程，无缝集成java与java可以很好的互操作
+scala是纯面向对象的语言，一切都是对象，所有操作由消息发送完成
+scala 所有预定义类型是对象，用户定义类型也是对象,每个操作都是方法
+静态强类型，支持泛型参数化类型
+Spark 核心代码使用scala开发
+scala shell
+	res0,res1,...scala默认交互shell将计算结果存储在res*中*表示第i次默认结果(like matlab ans)
+语法糖,指计算机语言中添加的某种语法，这种语法对语言的功能并没有影响，但是更方便程序员使用,通常来说使用语法糖能够增加程序的可读性，从而减少程序代码出错的机会
+
+2.
+变量
+val 定义的相当于java的final变量,一旦赋值不能改变
+scala> val b= "hello" 
+b: String = hello
+
+var 定义普通变量
+scala> var a=10
+a: Int = 10
+scala> a=11
+a: Int = 11
+
+_ 占位符初始化时必须指定类型
+scala> var s:String=_
+s: String = null
+scala> var s:Int=_
+s: Int = 0
+
+lazy只有在使用时才赋值
+scala> lazy val v=1
+v: Int = <lazy>
+scala> v
+res2: Int = 1
+
+基本类型(是对象)
+	Byte,Short,Int,Long有符号数
+	Float,Double, 浮点数
+	Char,16位无符号数,字符类型 ''
+	String,字符串 "" scala String is java.lang.String
+	Boolean,true,false
+	
+不加f/F会自动推导为Double
+scala> val v=2.12
+v: Double = 2.12
+scala> val v=2.12f
+v: Float = 2.12
+scala> val v='A'
+v: Char = A
+scala> val v="A"
+v: String = A
+
+元组类型可以放置不同类型值a._N索引
+scala> var a=(1,'a',"abcd")
+a: (Int, Char, String) = (1,a,abcd)
+scala> a._2
+res18: Char = a
+符号类型，用于标识
+scala> var v='abcde
+v: Symbol = 'abcde
+
+基本操作(是方法调用)
+	all is object;all operation is function call
+	
+1+2 会转换为1.+(2) 1+2 is 1.+(2)的语法糖
+scala> 1+2
+res6: Int = 3
+scala> 1.+(2)
+res7: Int = 3
+
+对象比较x==y is x.equals(y)，比较对象的内容,java ==是比引用，是否引用同一个对象,scala比引用is,x.eq(y)
+
+scala> a="123"
+a: String = 123
+scala> b=new String("123")
+b: String = 123
+scala> a
+res10: String = 123
+scala> b
+res11: String = 123
+scala> a==b
+res12: Boolean = true
+scala> a.eq(b)
+res13: Boolean = false
+
+3.
+语句
+
+if语句也可以作为表达式，可返回值赋值给变量(scala没有:?运算符)
+scala> v=if("h"=='h') 1 else 0 //v=("h"=='h')? 1 else 0
+v: Int = 0
+
+for 语句，不支持for(i=0;i<n;i++)，函数式编程语言推崇使用val类型变量
+scala> 1 to 5
+res0: scala.collection.immutable.Range.Inclusive = Range(1, 2, 3, 4, 5)
+scala> 1 to (5,2)
+res3: scala.collection.immutable.Range.Inclusive = Range(1, 3, 5)
+scala> 1 until 5
+res1: scala.collection.immutable.Range = Range(1, 2, 3, 4)
+scala> for(i<-1 to 5)
+     | println(i)
+1
+2
+3
+4
+5
+
+scala语句没有continue和break关键字，for支持设置一个停止条件
+scala> for(i<- 1 to (7,2) if(i<6))
+     | println(i)
+1
+3
+5
+
+for and yield可以当表达式使用返回值
+scala> var x=for(i<- 1 to (7,2) if(i<5)) i
+x: Unit = ()
+scala> x
+scala> var x=for(i<- 1 to (7,2) if(i<5)) yield i
+x: scala.collection.immutable.IndexedSeq[Int] = Vector(1, 3)
+
+
+4.
+集合
+	scala all集合来自scala.collection包及其子包mutable和immutable 
+	immutable集合是不可变集合，mutable集合是可变集合
+	函数式编程语言推崇使用不可变(val变量,immutable集合)
+
+数组
+
+定长数组
+scala> var c=new Array[Int](3)
+c: Array[Int] = Array(0, 0, 0)
+scala> c
+res20: Array[Int] = Array(0, 0, 0)
+用()索引，index start 0
+scala> c(1)=2
+scala> c
+res22: Array[Int] = Array(0, 2, 0)
+
+变长数组来自scala.collection.mutable,长度可随运行需要增加
+scala> import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ArrayBuffer
+scala> var d=new ArrayBuffer[Int]()
+d: scala.collection.mutable.ArrayBuffer[Int] = ArrayBuffer()
+scala> d+=(1,2,3,4)
+res28: scala.collection.mutable.ArrayBuffer[Int] = ArrayBuffer(1, 2, 3, 4)
+scala> d.length
+res32: Int = 4
+
+多维数组
+
+定义了5个类型为Array[Int]的数组,初始化为null，说明存储了一个指向null的引用，可以对此引用赋值
+scala> var a=new Array[Array[Int]](5)
+a: Array[Array[Int]] = Array(null, null, null, null, null)
+
+scala> a(1)
+res40: Array[Int] = null
+scala> a(1)=new Array[Int](6)
+scala> a
+res42: Array[Array[Int]] = Array(null, Array(0, 0, 0, 0, 0, 0), null, null, null)
+
+多维数组就是数组的数组
+多维数组的基本element不是一个数组而是一个指向数组的引用
+scala> a(0)=Array(1,2,3)
+scala> a
+res48: Array[Array[Int]] = Array(Array(1, 2, 3), Array(0, 0, 0, 0, 0, 0), null, null, null)
+
+List创建,::操作符(操作符也是函数，只是语法糖)
+scala> var a=1::2::3::4::Nil
+a: List[Int] = List(1, 2, 3, 4)
+scala> var b=List(1,2,3)
+b: List[Int] = List(1, 2, 3)
+
+scala> a::bscala> (x:Int,y:Int)=>x+y
+res10: (Int, Int) => Int = <function2>
+
+scala> val sum=(x:Int,y:Int)=>x+y
+sum: (Int, Int) => Int = <function2>
+
+scala> sum(1,2)
+res11: Int = 3
+
+res0: List[Any] = List(List(1, 2, 3, 4), 1, 2, 3)
+scala> a:::b
+res1: List[Int] = List(1, 2, 3, 4, 1, 2, 3)
+
+		
+一切都是对象，一切都是引用，引用是对象，操作是函数,函数是对象
+Any是abstract类，它是Scala类继承结构中最底层的。所有运行环境中的Scala类都直接或间接继承自Any类，它类似.Net，Java中的Object
+scala> var a=new Array[Any](10) //声明为Any可以存储引用任何类型
+a: Array[Any] = Array(null, null, null, null, null, null, null, null, null, null)
+scala> a(1)=1
+scala> a(2)="1"
+scala> a(3)="abcde"
+scala> a
+res9: Array[Any] = Array(null, 1, 1, abcde, null, null, null, null, null, null)
+
+Map key->value
+
+默认导入了不可变Map，不可变操作较少，因为不能修改
+scala> var a=Map("a"->1,"b"->2) 
+a: scala.collection.immutable.Map[String,Int] = Map(a -> 1, b -> 2)
+可变Map
+scala> var a=new scala.collection.mutable.HashMap[String,Int]()
+a: scala.collection.mutable.HashMap[String,Int] = Map()
+scala> a.put("a",1)
+res11: Option[Int] = None
+scala> a
+res12: scala.collection.mutable.HashMap[String,Int] = Map(a -> 1)
+默认导入了Map,Set,List...没有导入queue和stack，使用时自己导入
+
+
+函数
+
+定义时可指定返回值type，也可不指定，scala可以类型推导,若函数递归或使用return返回则必须指定返回值type
+scala> def gcd(x:Int,y:Int):Float={x+y}
+gcd: (x: Int, y: Int)Float
+scala> gcd(1,2)
+res0: Float = 3.0
+scala> def gcd(x:Int,y:Int)=x+y
+gcd: (x: Int, y: Int)Int
+scala> gcd(1,2)
+res1: Int = 3
+
+
+值函数，不能指定返回类型，由编译器自行推导
+lambda函数(没有名字的函数)，可赋值给变量创建函数字面量
+
+=>函数映射符
+scala> (x:Int,y:Int)=>x+y
+res10: (Int, Int) => Int = <function2>
+scala> val sum=(x:Int,y:Int)=>x+y
+sum: (Int, Int) => Int = <function2>
+scala> sum(1,2)
+res11: Int = 3
+
+函数的参数和返回值可以是函数类型(一个函数类型由输入参数个数类型和返回值类型确定)
+部分应用函数，对于柯里化函数和普通函数，使用_占据参数位置可以返回部分函数,即不完整的参数列表返回一个函数
+
+scala> def mul(f:Int)(x:Double)=f*x
+mul: (f: Int)(x: Double)Double
+scala> mul(1)(2)
+res10: Double = 2.0
+scala> mul(1)_
+res11: Double => Double = <function1>
+scala> val a=mul(1)_
+a: Double => Double = <function1>
+scala> a(3)
+res14: Double = 3.0
+
+定义偏函数PartialFunction,输入参数类型为Int,输出为String
+若函数输入没有匹配的case则函数会抛出异常
+scala> def isEven:PartialFunction[Int,String]={
+     | case x if x%2==0 => x+"is Even"
+     | case x if x<10 =>   x+"< 10"
+     | }
+
+
+对象
+	scala对象编译后仍然生成class文件，在JVM上执行	
+
+scala不支持static语法,使用了object关键字声明单例对象,由scala单例对象字节码可知它通过java语言单例模式和静态类成员实现
+因此scala main函数必须在单例对象中,或可以直接extends trait App对象，直接写可执行代码，App定义了main函数
+object A与class A 为伴生对象和伴生类，两者开放的访问权限，可以互相访问私有成员,但不开放private[this]权限,private[this]权限是比private还严格的控制
+使用override关键字对父类方法重写
+
+抽象类
+	普通类需要声明成员变量时初始化，并实现声明方法，抽象方法包含未初始化的成员变量(抽象成员变量)或抽象方法.
+	
+trait(特质)
+	类似于java接口或抽象类，更类似抽象类,trait可以有抽象和非抽象成员|方法
+	一个scala类可以混入多个trait
+	trait可以使用extends java的接口或scala的trait进行(extends ... with ...)
+	/*scala与java无缝集成，scala类可继承java类,trait可extends java interface*/
+	
+	
+包定义
+	package cn.scala.chapter08
+	<=>
+	package cn{
+		package scala{
+			package chapter08
+		}
+	}
+	
+
+import
+
+	import java.util._导入所有
+	import java.util.{HashMap => JavaHashMap} 导入HashMap并重命名 
+	import java.util.{HashMap,zip,regex} 导入多个
+	import java.util.{HashMap =>_} 类隐藏,隐藏了HashMap 
+	import java.util.{HashMap => _,_} 表示导入所有并隐藏HashMap 
+
+	scala默认导入了
+		import java.lang._ 
+		import scala.Predef._ 
+
+
+隐式转换
+	scala的类型转换行为有函数执行，发生类型转换时会自动调用这些函数,隐式转换函数由implicit声明,同一种类型转换(A->B)只应该有一个转换函数，否则会出现冲突报错.
+	implicit def A2B(x:A):B,声明的函数名字无关，只与类型输入类型和返回类型有关
+	隐式转换比较迷幻因此少用为好
+
+
+
+类与类型
+	java引入泛型以前类与类型是一致的
+
+	class Test的对象的类型是Test,类是Test
+	class Test<T>
+		a=new Test<int>()
+		b=new Test<string>()
+	a和b的类都是Test,但类型为Test<int>和Test<string>。若函数参数类型为Test<int>若传入Test<string>则类型不匹配
+
+	scala泛型
+		若A是B的父类
+		Test[T]非变:Test[A]与Test[B]不是父子关系
+		Test[+T]协变:Test[A]是Test[B]的父类
+		Test[-T]逆变:Test[B]是Test{A}的父类，父子关系反转
+
+	高级类型(是方便编程的语法糖)
+		单例对象和其它对象都有一个单例类型
+		class Dog
+		dog1=new Dog 
+		do2=new Dog 
+		typeOf[dog1.type]得到对象dog1的单例类型
+		单例类型为Dog的子类，并且此类型只有一个对象dog1
+		dog2.type与dog1.type是不同的每个对象的单例类型仅创建了自己,它们的类是相同的
+
+		类型投影
+			同一个类中定义一个内部类，在类的不同对象中两个内部类的类型是不同的
+			o1.Inner不等于o2.Inner
+			类型投影
+			将Outter#Inner作为o1.Inner和o2.Inner的父类
+		类型别名
+			type定义一个标识符为类型
+			type a
+			可以将存在类型赋值给a 
+			Class Map 
+			type a=Map
+			则a为Map的别名
+			new a等于new Map
+
+		抽象类型
+			类型在父类不确定，在子类才可以明确
+		
+		复合类型
+			继承混入多个类型时，可以对它们整体取一个别名
+			type a=A with B with C
+			
+		函数类型
+			函数输入输出参数确定了函数对象的类型
+			类型为FunctionN[T1,T2,...TN+1]
+
+			Double=>Int 类型为
+			Function1[Double,Int]
+
+
+scala 并发编程
+	Actor
+		State 
+			Actor对象的变量，资源等信息,State根据接受的消息改变
+		Behavior
+			执行的计算逻辑
+		Mailbox
+			建立Actor连接，每个对象一个消息队列,异步通信.
+	基于Actor module scala2.10引入了Akka框架
+
+

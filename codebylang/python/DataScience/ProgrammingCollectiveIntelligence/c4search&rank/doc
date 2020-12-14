@@ -1,0 +1,48 @@
+None是一个特殊的常量。
+None和False不同。
+None不是0。
+None不是空字符串。
+None和任何其他的数据类型比较永远返回False。
+None有自己的数据类型NoneType。
+可以返回None，赋值None
+
+正则表达式中的位置匹配：
+\b”一般应用在需要匹配某一单词字符组成的子串，但这一字符不能包含在同样由单词字符组成的更长的子串中。 
+比如要替换掉一段英文中的单词“to”，而“today”显然不在替换的范围内，所以正则可以用“\bto\b”来限定。 
+\b匹配的是一个位置代表的是前后有一个不是字符串 \bto\b  前一个\b后面是字符串t则前面不是字符串，后一个\b前面是字符串，后面不是
+
+
+
+爬虫，爬非静态url时，需要运行javascript
+
+python使用PyV8执行javascript代码示例分享
+安装相应的库，我使用的是PyV8
+需要注意的是里面写的function函数需要用（）括起来
+复制代码 代码如下:
+
+import PyV8
+class Test():
+    　　def js(self):       
+　　　ctxt = PyV8.JSContext()       
+　　　ctxt.enter()              
+　　　func = ctxt.eval('''(function(){return '###'})''')       
+　　　print func()       
+　　　print '213'
+if __name__ == '__main__':
+    　crawler = Test()   
+　　crawler.js()    
+输出的结果是：
+复制代码 代码如下:
+
+>>> 
+###
+213
+>>>
+向js代码中传递参数的方法
+复制代码 代码如下:
+
+　　func = ctxt.eval(''' (function(a){return encodeURIComponent(a)})''')
+        print func(a)
+a是需要传递的参数，encodeURIComponent是js中的一种编码方式
+我遇到这个问题是在做爬虫的时候，进行post传值的过程中，一些中文字符被网站的js使用encodeURIComponent进行了编码导致不能提交可识别的代码，所以想到这个办法在python程序中进行编码，之后再传值，就可以很好的解决这个问题
+

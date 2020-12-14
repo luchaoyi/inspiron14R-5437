@@ -1,0 +1,63 @@
+c1:
+pep8 *.py check code 是否符合pep8规范
+针对python的c代码有spep7规范
+flake8->hacking can check pep8 以及 python 2 and 3的兼容问题，导入风格，危险字符串格式化，本地化问题等
+可以在编辑器中嵌入检查规范的插件
+c2:
+任何时候想自己写函数时，先check 标准库	
+	operator:提供了一系列基本运算的函数操作.
+	platform:系统平台信息
+
+platform.uname()
+Out[2]: 
+('Linux',
+ 'lcy',
+ '4.4.0-64-generic',
+ '#85-Ubuntu SMP Mon Feb 20 11:50:30 UTC 2017',
+ 'x86_64',
+ 'x86_64')
+platform.node()
+Out[4]: 'lcy'
+
+platform.architecture()
+Out[6]: ('64bit', 'ELF')
+
+platform.machine()
+Out[7]: 'x86_64'
+
+platform.platform()
+Out[8]: 'Linux-4.4.0-64-generic-x86_64-with-Ubuntu-16.04-xenial'
+
+platform.processor()
+Out[9]: 'x86_64'
+
+platform.system()
+Out[10]: 'Linux'
+
+platform.version()
+Out[11]: '#85-Ubuntu SMP Mon Feb 20 11:50:30 UTC 2017'
+
+platform.dist()
+Out[12]: ('Ubuntu', '16.04', 'xenial')
+
+platform.libc_ver()
+Out[14]: ('glibc', '2.7')
+
+platform.linux_distribution()
+Out[16]: ('Ubuntu', '16.04', 'xenial')
+
+c6:
+python单元测试
+	python测试应该保存在程序or库的tests子模块中,这样测试可以与模块一起分发，如mylib/foobar.py 的测试通常存储在 mylib/tests/test_foobar.py中
+c7:
+decorator是在外部修改扩展函数的便捷方法
+c10:
+使用memoryview引用对象原始内存，不创建对象副本，免除大量内存复制操作,可以提高读写效率.
+c11:
+GIL,CPython解释器在执行字节码时，都先要申请这个锁
+
+
+
+
+
+	

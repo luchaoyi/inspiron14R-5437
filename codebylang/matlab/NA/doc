@@ -1,0 +1,22 @@
+> A
+A =
+
+     1     5     3
+>> inv(A) % == A^-1
+??? Error using ==> inv
+Matrix must be square.
+ 
+>> X=pinv(A)
+
+X =
+
+    0.0286
+    0.1429
+    0.0857
+
+>> A*X*A=A 
+    =
+
+    1.0000    5.0000    3.0000
+
+%%inv逆，pinv伪逆

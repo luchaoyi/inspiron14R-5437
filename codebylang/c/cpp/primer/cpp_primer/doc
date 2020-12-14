@@ -1,0 +1,209 @@
+c风格字符串
+		字符数组,'\0'结束标志
+		char a[]="hello"; //sizeof(a) == 6
+		char a[5]="hello" //5空间不能容纳'\0'，g++编译error，gcc编译通过	
+		char ca[]="123"; //4默认添加了\0
+static 
+	静态全局变量，定义文件内可访问
+	静态局部变量，作用域内可访问
+	静态类成员，作用域可访问，对象共享
+	
+运算符
+	sizeof
+		sizeof(数组)得到数组的字节数，sizeof(指针)得到指针自身所占字节数，sizeof不将数组转换为指针*
+		//数组某些情况下被隐式转换为指针，某些情况下不转换为指针
+	:: class or namespace::
+	
+异常
+	throw引发异常 try catch捕获异常,标准库定义了一组异常类
+	noexpect
+		不抛出异常的函数可以使用此声明向编译器承诺此函数不抛出异常，方便编译器执行某些优化
+		noexpect() 运算符也可以侦测函数是否可能抛出异常 
+	标准库异常以exception为基类
+	
+oop
+	继承
+		c++支持多重继承因此没有super关键字
+		class默认private继承, struct默认public继承
+		继承类型不改变派生类对基类的访问权限，继承类型影响派生类的使用者和派生类的派生类对基类的访问权限
+			A:public B		A继承到B,权限不变
+	 		A:protected B 	A继承到B,则A的public和protected成员成为B的protected成员
+			A:private B		A继承到B,则A的public和protected成员成为B的private成员
+	构造函数
+		A(A &a); 合法的构造函数，c++规定的用于实现拷贝语义的构造函数，可以不在函数中实现拷贝语义，但不符合常理
+		A(A a); 不合法的构造函数，输入参数不能为值，值传递引发值传递，陷入无限递归
+		A(A *a) 合法的构造函数，不是c++规定的拷贝构造函数，但可以在函数中实现拷贝语义	
+		A(...) 合法的构造函数，若为单输入参数，隐含类型转换语义
+		copy & move
+			虚拟析构阻止编译器合成默认移动和拷贝构造#有资源管理一般需要自己实现 
+			移动是对拷贝的优化，因此编译器不会贸然合成移动构造，只有当copy构造未自定义，且成员变量可以移动时才合成
+			自定义copy构造函数会禁止移动
+		父类构造函数的继承
+			一般对父类构造函数的默认调用仅限无参版本
+			在子类使用using会导致在子类合成相同形式的构造函数，并委托调用对应的父类构造 #变相继承
+		
+函数
+	返回类型 f(参数类型 参数 , ...)
+	参数类型 
+		引用或指针
+			希望修改传入对象的状态 
+			希望避免对象拷贝开销
+			避免拷贝开销但不希望修改 const限定
+		值 	
+			引发拷贝
+			指针本质上是值,拷贝的是指针
+	返回类型
+		值
+			f() 返回对象->临时对象,f()求值得到临时对象是右值
+			a=f() 返回对象->临时对象->a
+			A& a=f(); 不允许非const左值&不能绑定临时对象，临时对象是右值
+			A&& a=f() 只有返回对象->临时对象的copy, 右值引用a直接引用临时对象，避免一次copy
+		&& / &
+			返回引用类似返回指针，直接引用返回对象
+			直接避免返回对象->临时对象的拷贝，函数返回值是一个引用，引用直接绑定了返回的对象
+		返回值是引用避免 返回对象->临时对象的copy
+		a是引用避免临时对象->a的copy
+				
+重载运算符
+	重载运算符是函数，可当作函数直接调用 operator+(a,b)，间接调用a+b是operator+(a,b)的语法糖
+	类成员函数还是非成员函数
+		双目l op r
+			l为类对象时译器在l的类以及基类中寻找重载的op，若op需要支持l为其它类型则必须为非成员函数
+			编译器规定=,[],(),->必为类成员函数 (l必须为类的对象,且l和r不能互换的op)
+			具有对称性的op一般使用		
+		单目运算 v op / op v
+			v为类的对象时，触发重载op,单目op类成员函数和非成员函数都可以	
+		非成员使用friend声明访问private(友元声明的主要用在重载操作符)*
+	operator=	
+		实现拷贝语义的函数
+		返回值
+			void op=(...) 无返回值
+			* op=(...) 任意非调用对象的返回，不符合常理
+			A op= (...) 值返回
+				引发多次拷贝
+				支持a=(b=c),不支持(a=b)=c，a=b返回的是临时对象(右值)，不能被赋值
+			A& op= (...)
+				避免拷贝开销，	支持链式赋值
+	++和--
+		++/-- v
+		v++/-- 后置，使用int参数区分
+	类型转换
+		类型转other定义重载运算符,other转类型定义单参数构造函数
+
+--------------------------------------------
+<泛型编程&STL>
+#每一个概念都有相关型别包含元信息
+#STL中大量使用辅助函数类型推导，简化使用接口
+迭代器
+	相关型别
+		value type
+		ref type 
+		ptr type
+		it tag
+		distance type
+	指针与引用
+		*p的型别应该为T&/const T&
+	自定义迭代器
+		需要确定迭代器是否const，如果都定义，定义一个向const的转换*
+		const
+			ptr type const T
+			ref type const T&
+		mutable 
+			ptr type T
+			ref type T&
+仿函数 
+	相关型别
+		返回值类型
+		参数类型
+	EBC
+		unary_function
+		binary_function 
+	hash<T>
+		hash关联容器使用的hash函数，内置只针对char*,string以及内建整数定义
+		支持其它类型，自行提供特化版本
+容器
+	相关型别
+		value type 
+		ref/const ref type 
+		ptr/const ptr type
+		distance type
+		size type
+		iterator/const iterator type
+	唯一性
+	排序性
+	顺序性
+算法
+	f(范围，callable functor)
+	基本组件 	
+		distance type diastan 
+		advance
+		iterator EBC包含typdef,自定义迭代器时继承EBC简化书写，并有EBC优化内存布局
+	内存
+		un init copy
+			commit or rollback语义 要么全部构造成功，要么不构造任何东西(已构造销毁)
+		un init fill & un init fill n
+			指定范围fill x，即产生x的复制品,commit or rollback语义
+			1对多copy
+	non mutable algorithms
+		查找
+			adjcent_find 相邻元素满足某种条件的查找
+			find first of 查找[first2,last2)的任意值是否在[first1,last1)出现
+			search/find_end 子序列匹配 #KMP*
+			search_n 查找count个相等的子序列
+		计数
+			count/count_if ==value的个数/满足条件的个数
+		遍历 
+			for_each f(x);返回值为f;non mutable 范围内为f(x)的输入，不改变输入
+		比较
+			equal
+			mismatch 返回两个迭代器指示，两个序列失配(not equal)位置
+			lex compare 字典序比较
+			min/max a,b 两个数min/max
+			min/max_elememt 范围内min/max
+	mutable algorithms
+		拷贝
+			copy/copy_backward 
+			拷贝/反向copy
+		填充
+			fill/fill_n
+		交换
+			swap &a,&b 为保证效率，内置容器都实现了自己的特化版本
+			swap_ranges 范围swap
+		变换
+			transform for_each的mutable版本;y=f(x)/z=f(x,y);
+		替换
+			replace first,last/old/new/g
+			relace_if replace满足条件的元素
+		生成
+			generate/_n 调用生成器functor生成元素到range
+		移除
+			#移除不是删除*
+			remove 
+				不从容器删除元素，将范围内的元素移动到尾部，返回new_last
+				[first,new_last)不包含被remove的元素，元素被move到[new_last, last)
+				调用S.erase(remove(first,last),last),可删除[new_last, last)S之间的元素
+			unique  移除重复元素
+		重排
+			#无关紧要的stable特性，重排保持相对顺序
+			reverse inplace reverse
+			rotate 指定pos置换元素123(4)567 -> 4567123
+			prev/next permutation* 转换range排列
+			partition 满足pred的元素排列在不满足之前
+			stable partition 保持相对顺序的partition
+			rand shuffle/sample*
+			排序
+				sort/stable sort 
+				is_sorted 有序测试
+				sorted ranges的操作
+					二分查找 
+					归并
+					集合操作
+						数学上的集合没有顺序，但有序的集合让集合操作更优效率
+						sorted ranges没有集合的唯一性
+			堆
+				make_heap/push_heap/pop_heap/is_heap
+				sort_heap heap -> sorted ranges
+	数值算法
+		accmulate 指定init值和op，对序列进行累积
+		inner_product <a,b>
+		

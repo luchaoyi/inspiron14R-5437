@@ -1,0 +1,186 @@
+/**/
+并发的原因
+	关注点分离	不同线程/进程负责不同的逻辑，通过通信协作，代码组织自然，概念建模容易
+	性能
+		避免线程太多
+		服务器为每一个连接启动一个线程，对高并发是不现实的
+		使用线程池可以限制线程数量
+				
+thread
+  template <class _Fn, class... _Args, ...> 
+  explicit thread(_Fn&& _Fx, _Args&&... _Ax);	
+  
+  Fn callable对象
+  
+  thread对象作用域
+  	// thread对象和线程的关系 类似 unique_ptr和绑定内存(指针引用一块内存)的关系
+  	在创建thread对象的作用域内需要调用join/detach,否则离开{},thread的析构函数会调用terminate终止程序运行
+  	joinable?保证了有可join/detach的线程，因此join/detach之前应该使用joinable测试
+  	join
+  		调用join会在位置等待创建的线程主函数运行完
+  		joinable?->join,只可join一次
+  		为避免在join之前就发生异常
+  			1.抛出异常的thread应该try-catch
+  			2. RAII，构造一个对象在析构函数调用join，无论异常离开作用域就会join
+  	detach
+  		joinable?->detach 
+	  	detach分离了thread对象和线程的联系，thread对象不再引用线程
+	  	此时离开若离开创建{}，~thread析构，但线程依然正常运行
+	  	分离线程在后台运行，线程归属于runtime库 ，并由它保证线程退出时释放资源	
+	  	#线程和它引用的资源被move到一个由runtime接管和控制，创建的{}可安全析构thread对象而不影响绑定的线程
+	参数传递
+		区分传递给thread对象构造函数的参数和自定义线程主函数接收到的参数
+		注意如果传递给thread和主函数期待的类型不一致，可能产生bug!!!*!!!
+		使用std::ref向线程函数传引用
+	所有权转移
+		资源独占的class支持move，但不支持copy,如thread,unique_ptr等
+		没有被detach的线程，都需要有一个绑定对象，线程的所有权可以通过move来转交
+		但不允许将线程所有权转给已经绑定了线程的thread对象
+		可以将thread对象push到支持移动的容器(如vector),来管理一组线程
+		/*
+			thread t0(f0,...) 绑定了一个执行f0的线程
+			t0 = thread(f1)  #程序崩溃，若将执行f1的线程转给t0则执行f1的线程失去了绑定对象，因此不允许的，直接会调用terminate
+		*/
+	thread::id
+		get_id() / this_thread::get_id()
+		支持比较，排序，可作为hash的key根据id可为线程关联数据
+		没有数值语义，因此不能作为类似数组索引等用途
+		
+数据竞争
+	锁/原子操作/软件事物内存
+	::mutex
+		lock/unlock
+		标准库提供了RAII方式的lck_guard，不建议直接调用lock/unlock
+		#c++异常会打乱流程，因此c++的对称操作建议都使用RAII
+		被锁的变量要注意所有的访问，包括通过引用和指针(按引用、指针传递/返回等)，无漏之身
+		被保守的数据的指针和引用不要传递到保护范围之外
+		#读写互斥和写写互斥
+	全局一个锁 性能问题
+	使用多个锁 当某一个操作需要申请多个锁时可能产生死锁
+		std::lock 一次性锁住多个互斥量，无死锁风险，可能产生异常，要么都锁住，要么一个也不锁(会释放掉已经锁住的mutex)
+		设计层次结构的mutex，若违反锁定顺序规则则抛出错误
+		
+同步
+	1.持续检查一个共享flag是否被设置
+	2.周期性sleep_for
+	3.cond var,等待唤醒机制
+	cond var
+		cond var 只能与mutex一起搭配 //mutex一般搭配lock_guard和std::unique_lock使用
+		cond var any 灵活性高，性能不如cond var
+		.notify_one
+			唤醒在阻塞队列的线程，被唤醒线程，唤醒后先尝试获取互斥锁，然后再次检查条件是否满足
+			true 直接返回
+			false 解锁持有的互斥锁，然后将自己阻塞继续等待唤醒
+		.wait(互斥锁,等待条件)
+			true 直接返回
+			false 解锁持有的互斥锁，然后将自己阻塞继续等待唤醒
+		.wait_for 等待一段时间 
+		.wait_until 等待到时间点
+	future
+		get方法阻塞直到获取返回值才返回
+		async
+			T task(){...} //callable对象
+			future<T> ans = std::async(task,...) ,创建一个异步task并立即返回，此时主任务可以执行其它工作
+			...
+			ans.get()，直到需要，get返回值，此方法会等待直到异步任务完成(称为future就绪)，获取task的返回值
+		packaged_task
+			一个可封装一个callable对象的callable对象，有一个get_future对象可返回一个future
+			可以将task封装在 packaged_task中传递到其它线程执行，通过它的get_future得到future对象在需要时通过future获取结果
+			任务创建，任务执行，结果获取可以分离
+		promise
+			get_future可以获取关联一个关联的future，promise set_value后可以通过这个future来get
+			// promise可以用来实现packaged_task
+			创建一个promise和与之绑定的future,一个线程持有promise一个线程持有future，则两个线程可以做一次性通信
+			
+	无共享编程模型*
+		FP 纯函数，不可变对象
+		CSP
+			不共享数据，只通过发送消息交换共享信息(非共享内存式)
+			角色模型与状态机 不同线程扮演不同角色，通过消息交换，角色是一个状态机被消息驱动切换状态执行不同动作
+	对象生命周期*
+		访问已经释放的对象，可能导致随机错误
+		例子 异步调用时cpu代码离开作用域，对象相关的异步操作的执行处于不确定状态
+		
+内存模型
+	多线程模型的不同线程间语句执行顺序是不定的,线程内有sequence-before关系
+	内存模型定义了 当/如果不同线程间内存rw的语句在时间上满足某种先后顺序时，则最终结果(可见性)应该满足的约束
+	顺序一致性
+		线程间保证可见性，store必然被所有线程观测到
+		线程间store和load有sync with关系，即同一时间下所有线程看到值是一致的，代价比较大，core间可能需要密集同步
+		例子:
+			线程A store x
+			线程B  ... load x
+			线程C ... load x
+		顺序一致性保证，只要在时间上线程A的store x在其它线程load x之前执行则必然load x会读取到store x的值
+		松散一致性不能保证，即使线程A store x已经执行且在其它线程load x之前执行，但由于可见性无保证，因此load x依然可能是旧的值
+	松散一致性
+		每个线程的语句是顺序执行的，操作产生的值的可见性无顺序保证
+		例:
+			线程A  store x,store y  顺序执行
+			线程B load y,load x     顺序执行
+			根据线程内顺序执行关系(happens-before),	执行顺序为 
+			某种情况下,y load到了A store的值，但x load到原值，load y时读取到了store y	
+			因为不保证可见性顺序，因此线程B看到y更新后的值时，x还没有更新，即store x和load x没有 sync的关系
+	获取-释放	
+		r是acquire的,w是release的,r+w的操作是acq+rel的
+		不同线程间release和acquire是具有sync关系的
+		例子:
+			线程A  store x(rel)
+			线程B  load x(acq)
+			线程C  load x(acq)
+			// 线程A,B,C直接的store x和load x语句的执行顺序是不定的
+			顺序一致性保证，只要在时间上线程A的store x在其它线程load x之前执行则必然load x会读取到store x的值
+			松散一致性不能保证，即使线程A store x已经执行且在其它线程load x之前执行，但由于可见性无保证，因此load x依然可能是旧的值
+			获取-释放一致性保证，只要relase标识的stroe x在acquire标识的load x之前执行, 则不同线程间的rel和acq存在sync关系，因此线程B和C的load x可以看到线程A stror x执行存储的新值，一对rel-acq产生了强制顺序
+		release-consume
+			例子:
+				线程A  store x(rel)
+				线程B  load x(cons)
+			consume是acquire的特例，若线程A store的x和线程B load的x有依赖关系(生产者-消费者),则若store x在load x之前执行，load x一定能看到store x的结果
+	fence
+		线程A  store x,fence(rel),store y
+		线程B  load y, fence(acq),load x		
+		松散一致性下，若fence(rel)在fence(acq)之前执行则在，fence(rel)-fence(acp)具有sync-with关系
+		即若|fence(rel)|->|fence(acq)|/*happens-befeore关系*/,则store x和load x由于fence产生先后顺序，load x必然能看见store x的结果
+		即fence(rel)之前的store和fence(acp)之后的load具有了sync-with关系
+
+有锁编程(锁粒度问题)
+	链表 每个节点一个mutex -> 局部段一个mutex ->全局一个mutex
+	拉链hash表 每个槽位一个mutex,不同槽位无冲突
+	多个mutex需要小心死锁问题
+	
+无锁编程
+	又称乐观锁，若运气好一系列执行操作之间没有被其它线程插入则尝试成功，无阻塞等待损失
+				 若失败重复尝试次数少，则损失小于等待
+				 若大量失败冲突，则损失大于锁阻塞等待损失
+				 增加了并发能力
+	缺点
+		原子操作慢，原子变量需要在线程间同步(保证线程可见性)
+			
+线程池
+	主从结构，主线程下发任务(任务下发要负载均衡)到各个线程的私有任务队列
+	从线程从自己的任务队列取出任务执行，或窃取其它任务队列执行
+	submit
+		用户通过submit接口提交一组任务，任务被包装为(packaged_task)
+		同步submit submit任务后阻塞直到任务返回结果
+		异步submit 直接返回一个future; #理论上应该是异步的，一次提交多个任务才能激发多个线程同时运行
+			
+设计
+	#性能、异常安全、可扩展性
+	任务划分
+		分块/mode/递归
+		线程池+任务队列
+		非计算密集型按角色划分，当产生过多的共享和通信时，考虑任务划分是否有问题
+	缓存
+		ping pang缓存
+			不同核更新频繁共享变量，导致不同核直接需要对此值的缓存同步，这可能导致处理器停顿数百cycle
+		伪共享
+			不同线程的数据处于不同的cache line，导致非同一个值但依然产生ping pang缓存和读冲突
+		线程亲缘性 相同线程最好调度在一个线程执行
+		好的数据布局 
+			应该是线程内的数据是相邻的能位于一个cache line的，不同线程的数据位于不同cache line的
+			线程内紧密，线程间离散
+		#GPU是以wrap为单位的，应该wrap内紧密，wrap间离散
+	异常安全* 使用future，异常发送后被set到future,返回结果.get()时在主线程再次抛出
+		#某个线程异常未捕获则，Java主线程和其它线程不受影响，C++中程序会直接退出，所有线程都受影响
+	可扩展性 核数增多，任务能否线性加速

@@ -1,0 +1,33 @@
+模式
+
+默认模式，试图将句子最精确地切开，适合文本分析
+全模式，把句子中所有的可以成词的词语都扫描出来，适合搜索引擎
+ 
+
+接口
+
+组件只提供jieba.cut 方法用于分词
+cut方法接受两个输入参数：
+　　第一个参数为需要分词的字符串
+　　cut_all参数用来控制分词模式
+待分词的字符串可以是gbk字符串、utf-8字符串或者unicode
+jieba.cut返回的结构是一个可迭代的generator，可以使用for循环来获得分词后得到的每一个词语(unicode)，也可以用list(jieba.cut(...))转化为list 
+
+
+示例：
+
+
+s=jieba.cut("我是最帅的男人")
+s=list(s)
+#可以直接迭代得到词语
+#jieba.cut返回的结构是一个可迭代的generator，可以使用for循环来获得分词后得到的每一个词语(unicode)，也可以用list(jieba.cut(...))转化为list 
+
+for i in s:
+ a=a+'|'+i
+print s
+[u'\u6211', u'\u662f', u'\u6700\u5e05', u'\u7684', u'\u7537\u4eba']
+
+print a
+
+>>|我|是|最帅|的|男人
+

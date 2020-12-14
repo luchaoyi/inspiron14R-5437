@@ -1,0 +1,233 @@
+/x
+ 进程上下文
+ 中断上下文
+ 原子上下文 
+x/
+
+区分机制和策略
+	机制 提供什么功能
+	策略 如何使用功能
+驱动提供机制,应用定义策略
+
+模块构造&运行
+	模块仅链接到内核，只能使用内核导出的函数
+	模块并发 多个进程可能同时使用一个驱动，内核代码必须是可重入的
+	当前进程 内核代码通过current获得当前运行进程，current是指向tast_struct的指针
+	insmod
+		分配内存，装载模块，使用内核符号表对模块进程符号解析
+		modprobe装载模块时同时载入模块的其它依赖模块
+		驱动程序可指定参数，在装载模块时可接受命令行选项对参数赋值	
+	rmmod
+	lsmod
+	模块可导出符号提供其它模块使用
+	可在用户空间编写驱动程序
+
+
+字符设备		
+/x
+实现驱动
+	申请编号
+	实现操作
+	填写cdev 	操作和cdev关联
+	注册 	编号和cdev关联 
+	
+使用驱动
+	设备文件->编号->cdev->操作->设备  mknod /dev/memdev0 c 190 0
+	创建设备文件，设备文件通过编号指定驱动和对应设备,设备文件通过编号寻找cdev来关联cdev中的操作
+	通过操作设备文件，操作设备
+		
+
+x/
+	设备文件 
+		创建在 /dev/ 目录下 ，创建设备文件时指定主设备，次设备号，主设备号标识驱动程序，次设备号用于确定设备(使用相同驱动的为一类设备，需要是次设备号区分)，
+		
+	设备编号
+		主从设备号使用dev_t类型保存 MKDEV(int major,int minor)<->MAJOR(dev_t dev),MINOR(dev_t dev)
+		动态分配设备号，设备号不保持一致，因此无法预先创建设备节点
+		
+	数据结构
+		file_operations
+			每个打开的文件使用file结构表示，file结构包含file_operations结构定义了操作file对象的方法 /x oop x/
+			file_operations每一个字段指向驱动程序中实现特定操作的函数,不支持的操作设NULL,由内核决定行为;文件系统IO调用大多在后端有file_operations操作对应
+				
+				/X驱动代码在内核空间因此用户空间的指针不能直接解引用使用，需要检查并复制指针指向的数据到内核空间X/
+				
+				open 提供驱动初始化的能力
+				release 析构,open的反操作
+				read/write 调用和拷贝函数 用户空间<->内核空间,拷贝是必要的直接引用用户程序指针是危险的
+				readv/writev 若驱动没有实现readv/writev则默认通过多次调用read/write来实现，直接在驱动实现可获得更高的效率(每一次read/write  用户空间<->内核空间 都要复制数据)
+				ioctl 
+					cmd
+						内核已经规定了cmd的编码规则，linux/ioctl.h提供了生成和解析cmd的宏
+					 	幻数,命令序号,数据传输方向,size
+					 	注意不要和系统已经使用的冲突
+					 arg 
+					 	if arg 代表指针,指针需要验证是否合法，access_ok可验证
+					 	内核空间<->用户空间的数据传输，针对1,2,4,8字节有一组优化过的函数速度更快
+					 	
+					 	
+					 					
+		file 
+			代表每个打开的文件，open操作时由内核创建，close时释放此结构
+			{
+				文件模式 
+				当前r/w位置
+				文件标志:阻塞/非阻塞等
+				file_operations f_op 内核执行open时为这个指针赋值,可以在任何时候修改文件关联的操作，新操作立即生效(方法重载)
+				private_data 系统无定义，可自用
+				文件对应的目录项(目录和文件都是inode,目录项是为方便路径查找操作(类比数据库中的索引))
+			}
+							
+		inode 
+			代表文件,file -> inode,包含了文件的信息
+			i_rdev 若inode是一个设备文件，则此字段是真正的设备编号
+			i_cdev指针->cdev 
+				strutc cdev 内核定义cdev结构体统一表示字符设备,cdev是设备和内核的接口
+				cdev结构体绑定设备的操作，填写了cdev结构体后，调用cdev_add向内核注册#inode(设备文件) -> cdev -> fops 
+				
+			/*
+				inode->i_pipe //指向表示管道的结构体 
+				inode->i_bdev //指向表示块设备的结构体
+				inode->i_cdev //指向表示字符设备的结构体
+				inode->i_rdev  //设备编号
+			*/
+					
+高级字符设备
+	阻塞型IO
+		等待队列 由等待队列头wait_queue_head_t管理		
+		简单休眠  
+			wait_event_* (queue,condition)添加进程到等待队列，等待condition为真
+		简单唤醒 
+			wake_up_*(queue) 循环调用等待队列中的进程注册的唤醒回调函数
+		高级休眠
+			驱动程序可能需要使用更低层次的函数自行实现休眠
+			1.分配初始化wait_queue_head_t
+			2.设置进程状态为休眠
+			3.让出cpu,休眠
+			--->唤醒
+			4.休眠完成执行清理工作
+		
+	poll/select/epoll
+		都需要驱动提供poll方法，一般驱动的poll方法大致为
+			调用poll_wait方法向poll_table注册等待队列
+			查询设备状态，返回状态mask
+					
+	文件异步通知
+		用户角度
+			1.指定一个进程作为文件的属主,fcntl(F_SETOWN),属主的pid保存在filep->f_owner中
+			2.设置设备FASYNC标志
+			设置完成后，输入文件数据到达会发送SIGIO信号到属主进程
+		驱动角度
+			驱动实现fasync方法，只要文件标志中的FASYNC发生变化就会调用该方法
+			数据到达时，向注册为异步通知的进程发送SIGIO信号，在数据产生的位置调用,kill_fasync			
+			
+				
+内核调试
+	打印调试
+		printk 生产者 打印消息到循环缓冲区中
+		syslog or /proc/kmsg 消费者 取缓冲区消息 
+		dmesg  不刷新缓冲区情况下获取缓冲区内容
+	查询调试
+		使用命令查询需要查询的系统信息
+		
+	/proc文件系统
+		每个文件绑定一个内核函数动态生成内容，用于导出内核信息
+		驱动定义并实现一个read_proc函数生产内容
+		调用create_proc	_read_entry 在/proc下创建一个文件并关联自定义的read_proc函数，卸载驱动时remove_proc_read_entry撤销	
+	ioctl
+		为调试设计ioctl命令
+	strace命令
+		可显示由用户空间发出的所有系统调用
+		
+内核并发
+	linux/semaphore 	
+		信号量/互斥体
+	linux/rwsem 
+		写优先
+	linux/completion (完成接口)	
+		 线程 wait for 等待
+		另一个线程 complete 唤醒一个/多个 等待线程
+	linux/spinlock
+		可用于不能休眠的代码中提供互斥，信号量不能
+		编写拥有自旋锁代码时
+			应注意不能休眠
+			应禁止中断
+			短时间拥有
+	lockmeter可查看内核花费在锁上的工具
+	
+	无锁
+		atomic_t 原子整数 
+			++ --
+			+-i
+		bitops.h 提供对void *addr的原子位操作
+		seqlock
+			2.6引入
+			资源小，简单，频繁读，写很少且必须快速
+		rcu 
+			read-copy-update
+			读多写少
+					
+内核数据类型
+	c标准类型 不同arch长度可能不同
+	确定大小整数类型 linux/types.h
+		u8,s8
+		u16,s16
+		u32,s32
+		u64,s64
+	页大小
+		PAGE_SIZE
+	字节序
+	对齐
+	
+内存分配
+	内核将物理内存分为三个区域，物理内存以页为单位
+		用用于DMA的内存
+		常规内存
+		高端内存 
+			内核逻辑地址 内核的常规地址空间，一般和实际物理地址只差一个固定的偏移量
+			低端内存拥有逻辑地址，在直接通过__pa宏将逻辑地址转为物理地址直接访问物理内存，而高端内存访问前必须建立明确的虚拟映射，该物理页被映射到内核地址空间中才可以访问
+						
+	DMA
+		需要驱动程序分配一个or多个适合执行DMA的缓冲区
+		使用GFP_DMA调用kmalloc等函数从DMA zone分配内存
+		DMA数据传完成将产生中断通知cpu		
+		
+时间
+	jiffies_64 系统启动初始化0,每次时钟中断+1
+	延迟执行
+		循环忙等待
+		wait_event_timeout
+		短延迟 调用睡眠or延迟(忙等待)函数
+		内核定时器
+			注册函数，在指定时间运行，但函数运行在非进程上下文中
+			
+硬件
+	操作端口
+		操作前需要向内核声明需要操作的端口 request_region(first,n), sudo cat /proc/ioports 看查看端口分配
+		操作 一般使用内核提供的内联函数
+
+
+Linux设备模型
+	kobject 内核对象的父类 linux/kboject.h ,内核使用kobject结构将各个高层的内核对象连接起来形成一个层次结构
+		struct kobject {
+		const char		*name;
+		struct list_head	entry;
+		struct kobject		*parent; 
+		struct kset		*kset; 
+		struct kobj_type	*ktype;
+		struct kernfs_node	*sd; /* sysfs directory entry */
+		struct kref		kref;
+	#ifdef CONFIG_DEBUG_KOBJECT_RELEASE
+		struct delayed_work	release;
+	#endif
+		unsigned int state_initialized:1;
+		unsigned int state_in_sysfs:1;
+		unsigned int state_add_uevent_sent:1;
+		unsigned int state_remove_uevent_sent:1;
+		unsigned int uevent_suppress:1;
+	};
+	
+/*
+	嵌入kobject的内核对象可通过sysfs导出信息,kobject不会自动添加到sysfs，需要调用kobject_add添加到sysfs
+	总线，驱动，设备是主要使用kobject的内核对象
+*/

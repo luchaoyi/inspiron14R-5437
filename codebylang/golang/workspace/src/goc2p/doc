@@ -1,0 +1,113 @@
+下载链接:http://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz
+
+go源文件分为3类:
+	命令源文件:声明为属于main代码包，且包含无参数和结果声明的main函数的源码文件,包含main的源码文件可以直接独立运行(go run),也可被go build/go install 编译为可执行文件.
+	库源文件:存在与某个代码包的普通文件.
+	测试源文件:用于测试的特殊源代码.需要以_test.go结尾,文件中至少包含一个以Test or Benchmark开头、拥有一个类型为testing.T和testing.B的参数的函数.
+	 
+go code 必须放置于工作区中.工作区是一个特定工程的目录包含:
+./src 以代码包形式组织源文件,代码包与src下的子目录一一对应，直接放置于src目录下的代码包只能声明为属于main代码包.同一个代码包中的所有源码文件所属代码包必须一致，否则无法执行go build/go install 因此命令源码一般单独放置在一个目录下,如果多个命令源码放置在一个目录下则无法正确go build/go install ,可以指定go run。
+gi build在src目录下生成一个可执行文件
+go install将生成可执行文件，并直接安装到bin目录下
+
+./pkg ./src/下的源代码被go install 命令编译安装生成*.a归档文件存放在此目录下(类似于java jar包),一个包(子目录)生成一个同名.a文件.
+./bin 此目录存放go install 编译安装后，保存由命令源文件生成的可执行文件.
+  工作区目录路径必须添加到环境变量GOPATH中,没有添加到GOPATH中的目录不是工作区，不能通过绝对路径调用包。go get命令默认将第三方代码库下载到GOPATH设定的第一个工作区下.
+  
+代码包:
+	声明:源码文件声明为某个包,如 basic/set 下文件 声明 package "set"，命令源码无论在哪个目录下都声明为main包
+  	导入: 
+  		import basic/set ,使用 set.*
+  		import 
+  		(
+  		...
+  		) 导入多个包可以使用()
+  		import 
+  		(
+  		sa set
+  		sb basic/set
+  		.  /basic/basic/set
+  		)多个同名包导入在当前环境会引起冲突，因此sa,sb为别名 使用时 sa.*,.为别名可以直接使用包内元素不需要加包名，即相当于将包内元素直接导入了当前环境,类似与python的from ... import * ;两个特殊代码包名词 all代表环境变量GOPATH下all工作区的all代码包,std代表Go标准库所有代码包
+ 
+  	包初始化:每个代码包可以有一个func init()无参数结果声明，初始化包.所有代码包init在main之前运行.执行先后次序为，全局变量初始化 -> init -> main   		
+  		 		
+	总结:go语言抽象层次介于c与java之间，go语言包含了c与java某些类似的特征,并吸纳了一些当前流行的脚本语言的某些优点.
+	go语言编译生成的.a文件类似与java jar 文件,包含main函数的文件可以直接由go run运行即相当于java将文件编译为了java的字节码由jvm解释运行都属于编译+解释.进一步使用go install /go bulid可以将包含主函数文件编译为平台相关的可执行文件.
+		
+		
+
+
+
+		
+	方法:是一种声明了关联类型的函数。
+		func (self MyType) fn(...)...,方法fn声明为关联到MyType类型上
+		一组声明关联到MyType上的方法形成了MyType类型的方法，这是一种松散的耦合关系,不同于java等定义了一个类将方法组织在一起，这里是通过声明在一起而在一起。
+		关联到基本类型为值方法，关联到指针的为指针方法。指针方法包含值方法，因此指针变量能调用所有方法，而基本类型变量只能调用值方法。指针类型的self，如果在方法中改变self则self指向的对象会被改变.
+	
+	接口:
+		接口是一组方法集合.
+		接口的实现,若一个类型实现了某接口的所有方法则实现了此接口。即一组方法关联到一个类型，实现了某个接口所有声明方法则实现了接口。
+		
+		go语言通过struct定义新的数据类型，通过interface定义一个方法集，而方法集也是一种数据类型(方法也是数据).通过struct以及声明为struct的方法来形成一个类的概念。
+		若某个数据类型A的方法，是某个接口B的超集则实现了B接口。A类型实现了B接口则，可以将属于数据类型A的变量或值赋值给此B接口类型的变量,而interface类型可以嵌入，可以实现类似继承的机制。若A类型没有完全实现接口，将A类型当作B类型使用时会编译器检查出错误。		
+	
+	结构体:
+		定义一个新的数据类型，然后定义此数据类型关联的方法。这形成了类似对象的形式.
+		结构体嵌入，若A包含B结构体，则B结构体所有关联方法，A也无条件拥有
+				
+数据初始化:
+	new:初始化一个清0的的内存	
+	make:初始化字典，切片，通道类型，这三种类型都引用一个底层数据类型,都是引用类型。
+
+
+
+/*********示例***********/
+package main
+import
+(
+"fmt"
+"os"
+)
+
+
+
+func switch_demo (lang string){
+		switch lang{
+		default:
+			fmt.Printf("default\n")
+		case "python","ruby":
+			fmt.Printf("p | r\n")
+		case "java","c":
+			fmt.Printf("j | c\n")
+	}
+
+}
+
+func main(){
+	
+	fmt.Printf("%v\n",os.Args) //os包Args包含命令行参数
+
+	var v string="Hello,World!"
+	fmt.Printf("%v\n",v)
+	v_:="123" //:= 声明加赋值 左边必须是一个新的标识符，否则报错 
+	fmt.Printf("%v\n",v_)
+
+	if i:=0;i>-2{
+		fmt.Printf("%v\n",i)
+	}
+
+	switch_demo("python")
+	switch_demo("c")
+
+	ints := []int {1,2,3,4,5}
+	for i,d:=range ints { //for的range子句,range子句迭代数组，切片，字典等
+		fmt.Printf("%d:%d\n",i,d)
+	}
+	
+}
+/********************//*********示例***********/
+
+
+
+
+

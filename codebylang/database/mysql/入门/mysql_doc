@@ -1,0 +1,267 @@
+/*root权限或sudo*/
+一、 启动
+1、使用 service 启动：service mysql start
+2、使用 mysqld 脚本启动：/etc/inint.d/mysql start
+3、使用 safe_mysqld 启动：safe_mysql&
+二、停止
+1、使用 service 启动：service mysql stop
+2、使用 mysqld 脚本启动：/etc/inint.d/mysql stop
+3、mysqladmin shutdown
+三、重启
+1、使用 service 启动：service mysql restart
+2、使用 mysqld 脚本启动：/etc/inint.d/mysql restart 
+
+
+mysql -u root -pluchaoyi@ -hlocalhost 登录
+mysqladmin -u root password ''        更改密码   
+
+
+mysql命令:
+SHOW 用来查看数据库系统相关信息:
+>show databases;
+>show engines \G;
+>show variables like 'storage_engine';
+> show processlist;数据库当前用户连接信息
++----------------+--------+
+| Variable_name  | Value  |
++----------------+--------+
+| storage_engine | InnoDB |
++----------------+--------+
+mysql有多种存储引擎，不同环境选择不同,每一个表都可以选择一个不同的引擎
+InnoDB:事物安全，并发控制
+MyISAM:插入查询效率高
+Memory:表存储在内存中,快速处理小量数据，无安全性
+Archive:只有INSERTSELECT适合选择,支持高并发插入操作,不是事物安全
+> show tables; 查看数据库表
+创建，使用，删除数据库
+>show variables like '%dir%'; 查看变量匹配有dir的
+> create database test;
+> show databases;
+> use test;
+> drop database test;
+
+
+数据库备份:
+mysqldump -u root -p test > testdball.sql  备份test数据库下所有表
+mysqldump -u root -p test users > testdbusers.sql   备份test数据库下的users表 test.users
+mysqldump -u root -p --all-databases > dball.sql 备份所有数据库
+mysqldump -u root -p --databases ... ... >....sql 备份多个数据库
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+数据类型:
+	整数:TinyINT,SmallINT,MediumINT,INT,BigINT 1,2,3,4,8 /*INT(12) 12代表显示位数,与存储无关*/
+	小数:float,double 4 8 ; dec(M,D)	M精度总位数,D小数位数,DEC存储长度为M+2不固定，实际上是以串存放的
+	日期时间:DATE,YEAR,TIME DATETIME(DATE+TIME),TIMESTAMP
+	字符串:char(M) varchar(M) text enum('m','f') set('a','b','c')值只能是集合中的与枚举类似，不同的是SET可以是多个字符串结合,枚举只能选一个
+	二进制:BIT,BINARY...,BLOB...;
+
+
+
+>alter table users add sex enum('m','f');
+>insert into users (id,sex) values (1,'m');
+>alter table users add s set('a','b','cde','f');
+>insert into users(id,s) values(4,'a,b');
+表:
+>desc users;显示表信息
+>create table test(id int(12) primary key auto_increment,name varchar(25) not null,uid INT(11) unique,sex varchar(5) default 'm');
+约束:
+	primary key
+	foreign key: 保证数据完整性，不允许删除另一个表中具有关联的行, A<--B B定义了外键约束关联到A,B依赖A，A为父表,B为子表,A不能随便删除
+	unique: 唯一性
+	default 值:设置默认值
+	not null:非空
+	auto_increment:auto ++
+
+>CREATE TABLE Photo(
+	PhotoId INT PRIMARY KEY CHECK(PhotoId>0),
+	Name VARCHAR(30) NOT NULL UNIQUE (Name),
+	Class VARCHAR(30) CHECK(Class IN ('Unclassified', 'Nature', 'Family', 'Work', 'Travel', 'Misc'))
+)
+
+
+> ALTER TABLE users ADD value varchar(15);
+> ALTER TABLE users change value info varchar(12);
+Alter table * 动作:
+					rename
+					modify:修改
+					change:更改
+					engine=:更改引擎 
+					add:添加
+					drop:删除 
+
+> DROP TABLE [IF EXISTS] test;外键约束父表不能删除，需先删子表，或解除关系:
+
+--------------- 
+SELECT:
+mysql> select sex,count(*) as total from users group by sex with rollup; with rollup 多一行显示总数
++------+-------+
+| sex  | total |
++------+-------+
+| m    |     3 |
+| f    |     2 |
+| NULL |     5 |
++------+-------+
+mql> select sex,count(*) as total from users group by sex having total>2; having针对聚合值过滤
++------+-------+
+| sex  | total |
++------+-------+
+| m    |     3 |
++------+-------+
+sql> select sex,count(*) as total from users group by sex order by total;
++------+-------+
+| sex  | total |
++------+-------+
+| f    |     2 |
+| m    |     3 |
++------+-------+
+连接:
+inner join:两表相等字段
+left outer join:返回左表中所有记录和右表中连接字段相等的记录
+right outer join:返回右表中所有记录和左表中连接字段相等的记录
+
+子查询(select 嵌套):
+ANY: 大于子查询返回结果集合中任何一个
+ALL: 大于子查询返回结果集合中所有结果
+EXISTS:子查询返回结果集合不为空时EXISTS返回True，此时进行外层查询，否则不进行外层查询
+IN:存在于子查询返回结果集合中
+mysql> select * from users where id > ANY(select id from test);
++----+------+------+------+------+
+| id | name | info | sex  | s    |
++----+------+------+------+------+
+|  2 | NULL | NULL | m    | NULL |
+|  3 | NULL | NULL | f    |      |
+|  4 | NULL | NULL | f    | a,b  |
++----+------+------+------+------+
+mysql> select * from users where id > ALL(select id from test);\
++----+------+------+------+------+
+| id | name | info | sex  | s    |
++----+------+------+------+------+
+|  4 | NULL | NULL | f    | a,b  |
++----+------+------+------+------+
+mysql> select * from users where id IN (select id from test);
++----+------+------+------+------+
+| id | name | info | sex  | s    |
++----+------+------+------+------+
+|  1 | NULL | NULL | m    | NULL |
+|  2 | NULL | NULL | m    | NULL |
+|  3 | NULL | NULL | f    |      |
++----+------+------+------+------+
+mysql> select * from users where EXISTS (select id from test);
++----+------+------+------+------+
+| id | name | info | sex  | s    |
++----+------+------+------+------+
+|  0 | NULL | NULL | m    | NULL |
+|  1 | NULL | NULL | m    | NULL |
+|  2 | NULL | NULL | m    | NULL |
+|  3 | NULL | NULL | f    |      |
+|  4 | NULL | NULL | f    | a,b  |
++----+------+------+------+------+
+
+mysql> select * from users union all select * from users;
+mysql> select * from users union select * from users;
+
+索引:表上创建索引，可以加快查找速度，但是对于频繁更新的表,添加索引在更新时也要更新索引
+	>show index from test;查看索引信息
+	添加索引: 
+	1.create table test2 (id int(11) primary key,value char(4),INDEX idx(id));建表时创建INDEX idx
+	2.alter table test add index idx(id); 为id字段添加idx索引 
+	3.create index Valueidx on test(value);为value列添加索引
+ 删除索引:
+	1.alter table test drop index idx;
+	2.drop index idx on test;
+---------------
+>insert into users (id,sex) values (1,'m'); /*insert into ...(...) select ... 将查询语结果插入 */
+>update users SET sex='f' [where id >2];
+>delete from users [where id>3];
+----------------
+触发器:
+create trigger ... BEFORE(after) insert|delete|update on test FOR EACH ROW 
+	BEGIN
+		...(要触发的SQL语句)
+	END
+
+drop trigger ...
+
+视图:
+create view ... as select ...
+drop view ...
+----------------
+函数:（聚合）有返回值，使用方法和内置函数一样，函数只能返回一个值。
+mysql> create function func(i int)
+    -> returns varchar(50)
+    -> begin
+    -> return (select value from test where id > i);
+    -> end//
+mysql> select func(0)//
+ERROR 1242 (21000): Subquery returns more than 1 row
+mysql> select func(0)//
+ERROR 1242 (21000): Subquery returns more than 1 row
+mysql> select func(1)//
+ERROR 1242 (21000): Subquery returns more than 1 row
+mysql> select func(2)//
++---------+
+| func(2) |
++---------+
+| c       |
++---------+
+1 row in set (0.00 sec)
+mysql> select func(3)//
++---------+
+| func(3) |
++---------+
+| NULL    |
++---------+
+1 row in set (0.00 sec)
+存储过程:没有返回值，需要指定输入参数IN,OUT,使用call调用;
+mysql> delimiter // 在命令行定义时，指定结束符，避免与;冲突
+mysql> create procedure proc() 定义 
+    -> begin
+    -> select * from test;
+	-> end//
+mysql> delimiter ;
+mysql> call proc();调用
+
+mysql> create procedure proc1(OUT param1 INT)
+	-> comment 'proc1'
+	-> begin	
+	-> select count(*) into param1 from test; select into 输出参数 
+	-> end//
+mysql> call proc1(@num); OUT在@num中
+mysql> select @num;
+
+declare 变量 类型 default 默认值;
+set 变量=值;还可以通过select ... into ... 为变量赋值
+
+mysql中可以定义handler 异常处理。 
+declare ... condition for 
+declare handler_type handler for ...                                             
+
+流程控制:
+if ...	
+	then ...
+	else if ... then ...
+	else ...
+end if;
+
+case ...
+	when...then...
+	...
+	else  /*default*/
+end case; 
+
+[label:]LOOP
+	... 
+	... LEAVE label; /*break*/
+	... ITRATE label; /*continue */
+END LOOP label;
+
+
+[label:]REPEAT
+	... 
+UNTIL... 表达式真，循环结束
+END REPEAT label;
+
+[label:]WHILE ... DO
+	... 
+END WHILE label;
+

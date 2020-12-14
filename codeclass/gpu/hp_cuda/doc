@@ -1,0 +1,42 @@
+高性能cuda应用设计与开发|于玉龙 译
+
+1.
+cuda提供多种API
+	a)数据并行C++ Thrust
+	b)用于c or c++ 的Runtime API
+	c)用于c or c++的 Driver API
+	从高层到底层，高层易编码，底层对GPU控制更多，cuda3.2 开始支持混合三种API编程
+	
+kernel函数调用是异步的，host提交kernel到device，并不等待，因此kernel无法返回函数值(因此返回void)
+
+命名习惯
+	声明device变量使用d_前缀
+	声明host变量使用h_前缀
+
+GPU编程法则
+	将数据放入存入GPU存储中
+		一次放入多次使用，总线带宽很低
+	交给GPU足够多的任务
+		小任务不必使用GPU,启动kernel有开销
+	注意数据重用，避免带宽限制
+
+nvcc支持OpenMP
+	-Xcompiler -fopenmp
+		
+GPU每秒万亿次计算操作会使误差积累非常快
+
+
+cuda调试
+	cuda-gdb
+		l fill  查看fill源代码 
+		b n     breakpoint
+		r
+		p tid   print tid 
+		cuda thread(403) 切换tid=403的线程
+	cuda-memcheck
+		内存检查，可检查如内存访问越界等
+
+ddd提供gdb调试器的图形化界面
+	ddd --debugger cuda-gdb 可指定使用cuda-gdb
+
+

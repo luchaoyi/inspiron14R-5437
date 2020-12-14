@@ -1,0 +1,187 @@
+C1:
+matplotlib 配置文件
+	代码运行目录的matplotlibrc文件 
+	用户级目录的 .matplotlib/matplotlibrc文件
+	安装级目录的配置文件
+	python -c 'import matplotlib as mpl ; print mpl.get_configdir()'
+	=>/home/lcy/.config/matplotlib
+使用代码配置:
+	# rcParams字典 
+	mpl.rcParams['lines.color']='r'
+	mpl.rcParams['lines.linewidth']=2
+	# rc()函数 
+	mpl.rc('lines',linewidth=2.color='r')
+	
+
+
+matplotlib.pylab是对matplotlib面向对象库的封装，提供了一组类似于matlab绘图函数的接口
+1.绘图函数向内存中对应的对象(某个figure的某个axes中)添加图形元素(每个图形元素也是一个对象). 
+2.将内存中的对象绘制到目标设备上.
+
+figure:最上层对像实例,包含所有可见不可见内容.
+	axes:坐标系对象,axes对象几乎包含了绘图元素.如点，线，刻度，标签等.如使用plot()函数就是向axes.lines列表添加线条实例
+		 axes对象包含一系列生成绘图元素的方法。如axes.plot()在axes对象上添加线条.和plot()函数实现同样功能。
+		 axes包含了xaxis,yasix等坐标轴对象的引用.
+		 axes对象的add_*系列方法为axes添加一些图形元素对象(ax.add_patch,ax.add_line,ax.add_table),set_*系列方法设置某些元素参数(ax.set_xlabel)
+		axis:坐标轴对象管理坐标轴的标签，刻度，定位器等对象.通过对这些对象的操作可以控制坐标轴的刻度(ticks)，范围(limit)等
+		 
+坐标轴刻度由刻度定位器(tick locator)和刻度格式器(tick formatter)组成.
+		 刻度定位器(tick locator):指定刻度所在位置
+		 刻度格式器(tick formatter):指定刻度显式的样式	
+		 
+如:ax.xaxis.set_major_locator(mpl.ticker.FixedLocator(xs))
+ax是axes对象ax引用了对象axis,使用set_major_locator设置了xaxis的刻度，而传入对象mpl.ticker.FixedLocator(xs)是locator对象
+			
+c2:
+#MAD 
+#Mean Absolute Deviation:平均绝对偏差:(求和|xi-xbar|)/n : 观察值与均值的绝对值偏差的平均
+#Median Absolute Deviation:中位数绝对偏差: Median(|xi-Median(xi)|):观察值与中位数的偏差的中位数
+#np.sum axis 0,-2列求和，-1,1行求和
+a
+Out[44]: 
+matrix([[1, 2, 3],
+        [4, 5, 6]])
+                                         -|-   0
+                                         	-1    1
+                                         	   -2	
+np.sum(a,axis=0)      
+Out[40]: matrix([[5, 7, 9]])
+np.sum(a,axis=1)
+Out[43]: 
+matrix([[ 6],
+        [15]])
+np.sum(a,axis=-1)
+Out[41]: 
+matrix([[ 6],
+        [15]])
+np.sum(a,axis=-2)
+Out[42]: matrix([[5, 7, 9]])
+
+python文件操作
+#r(w)b与r(w)区别:
+#文本文件读写模式会对\n,\r\n进行处理，符合跨平台特性
+#b读写模式不作任何改动,原样IO
+seek():移动文件读取指针到指定位置
+seek()的三种模式：
+    （1）f.seek(p,0)  移动当文件第p个字节处，绝对位置
+    （2）f.seek(p,1)  移动到相对于当前位置之后的p个字节
+    （3）f.seek(p,2)  移动到相对文章尾之后的p个字节
+tell():返回文件读取指针的位置
+next():read a line and seek file pointer -> next line 
+
+
+#xrange是一个类,可迭代，可以索引访问
+for i in xrange(1,10):
+    print i   
+1
+2
+3
+4
+5
+6
+7
+8
+9
+s=xrange(1,10)
+s
+Out[69]: xrange(1, 10)
+s[1]
+Out[70]: 2
+
+#numpy的数据类型 
+#numpy使用c语言实现，因此有数据类型概念,int8 255 is -1 
+a=numpy.array([255,3.4],'int8')
+a
+Out[17]: array([-1,  3], dtype=int8)
+a=numpy.array([1.2,3.4],'int64')
+a
+Out[4]: array([1, 3])
+
+#numpy.memmap 内存映射可以加载文件到内存，当作数组来访问.适合快速加载大图像
+import matplotlib.pyplot as plt
+memmap=numpy.memmap('image_name',shape=(50,50))
+plt.imshow(memmap)
+plt.show()
+
+c3:
+use "ipython --pylab" startup ipython,相当于导入了以下库:
+import numpy
+import matplotlib
+from matplotlib import pylab, mlab, pyplot
+np = numpy
+plt = pyplot
+from IPython.display import display
+from IPython.core.pylabtools import figsize, getfigs
+from pylab import *
+from numpy import *
+
+#添加水平h和垂直v 'line
+In [12]: axhline(3)
+Out[12]: <matplotlib.lines.Line2D at 0x7f14536c2fd0>
+In [13]: axvline(3)
+Out[13]: <matplotlib.lines.Line2D at 0x7f14536f3a50>
+
+#plot marker 线条标记，线条风格(实线，虚线,...),颜色，宽度
+In [27]: plot([1,2,3,4,5],marker='D',ls='--',c='b',lw=2)
+Out[27]: [<matplotlib.lines.Line2D at 0x7f164dd3a890>]
+
+c4:
+plt.plot绘制的是线条
+plt.fill接受与plot相似的参数，绘制填充图
+
+
+c5:
+#matplotlib扩展工具包是关注某个话题的特定函数集合
+#如mplot3d关注3d绘图
+In [7]: from mpl_toolkits.
+mpl_toolkits.axes_grid   mpl_toolkits.exceltools  mpl_toolkits.tests
+mpl_toolkits.axes_grid1  mpl_toolkits.gtktools    
+mpl_toolkits.axisartist  mpl_toolkits.mplot3d    
+
+In [7]: from mpl_toolkits.mplot3d.axes3d import Axes3D
+#生成3d axes3d对象
+axes(projection='3d')
+Out[21]: <matplotlib.axes._subplots.Axes3DSubplot at 0x7f12fc046810>
+Axes3D(f)
+Out[22]: <mpl_toolkits.mplot3d.axes3d.Axes3D at 0x7f12f33dc410>
+f.add_subplot(111,projection='3d')
+Out[23]: <matplotlib.axes._subplots.Axes3DSubplot at 0x7f12f33dc850>
+#,解包装包
+a,=[1]
+a
+Out[10]: 1
+a,
+Out[11]: (1,)
+1,2,3
+Out[15]: (1, 2, 3)
+
+c7:
+#两个序列的相关性，是计算序列在n时间延迟下与另一个序列的相关性
+#类似与字符串比对，移动一个信号，每一个位置计算一次,找关系
+In [32]: ax=axes()
+In [33]: ax.xcorr(s,s_,maxlags=None) #相关性
+Out[33]: 
+(array([-9, -8, -7, -6, -5, -4, -3, -2, -1,  0,  1,  2,  3,  4,  5,  6,  7,
+         8,  9]),
+ array([ 0.05298774,  0.21767808,  0.18382165,  0.32289378,  0.41000386,
+         0.50539206,  0.51266245,  0.69734323,  0.71574666,  0.78263065,
+         0.70724434,  0.65943358,  0.52894846,  0.53828232,  0.37566119,
+         0.34351183,  0.22912189,  0.13477031,  0.07489139]),
+ <matplotlib.collections.LineCollection at 0x7f6895e5df10>,
+ <matplotlib.lines.Line2D at 0x7f6895b5ae90>)
+
+In [35]: ax.xcorr(s,s_,maxlags=None) #自相关性
+Out[35]: 
+(array([-9, -8, -7, -6, -5, -4, -3, -2, -1,  0,  1,  2,  3,  4,  5,  6,  7,
+         8,  9]),
+ array([ 0.05298774,  0.21767808,  0.18382165,  0.32289378,  0.41000386,
+         0.50539206,  0.51266245,  0.69734323,  0.71574666,  0.78263065,
+         0.70724434,  0.65943358,  0.52894846,  0.53828232,  0.37566119,
+         0.34351183,  0.22912189,  0.13477031,  0.07489139]),
+ <matplotlib.collections.LineCollection at 0x7f689595f5d0>,
+ <matplotlib.lines.Line2D at 0x7f6895ae6690>)
+
+c8:
+patches对象：颜色补片，是一个用颜色填充的图像对象。
+
+

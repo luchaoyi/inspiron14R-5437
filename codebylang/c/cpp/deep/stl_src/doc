@@ -1,0 +1,151 @@
+内存配置器
+	STL标准规定的分配子
+		rebind 包含嵌套的分配子allocator<U>other*
+		allocate/deallocate 配置/归还空间
+		construct/destory 构造/销毁对象
+	对象构造销毁
+		构造construct placement new 
+		销毁*
+			#单个元素，多个元素，trivial 和 no trivial 处处考虑着开销的必要性 
+			单个元素，直接调用析构函数
+			[first,last)范围多个元素，则使用type_traits技术，判断( value type )有trivial destructor则不做操作，否则调用元素的析构函数*
+	两级内存配置
+		第一级：大于128B直接使用mallloc和free,realloc等函数申请内存
+		第二级：
+			小于等于128B，为避免内存碎片化,使用内存池技术，内存池维护了(8,16,24,...128)bytes的块,申请内存被自动调整到8的倍数
+			使用union节省内存，在区块在内存池链表中链接的时候是指针，取出来的时候，是存放数据的区块
+			内存供应关系：系统heap -> 内存池 ->freelist
+	内存填充
+		type_traits判断是否为POD(纯量型别(scalar types，基本类型)或传统的 C struct 型别)
+		non-POD 型别采取最保险安全的作法,调用construct
+		POD 型别必然拥有 trivial ctor/dtor/copy/assignment 函式,	对 POD 型别采取最有效率的初值填写(调用fill,copy,fill_n)
+		fill,copy,fill_n有大量的特化版本，极致追求性能
+
+/*	
+	设计适当的相应型别(associated types),是迭代器的责任
+	设计适当的迭代器,则是容器的责任。唯容器本身,才知道该设计出怎样的迭代器来走访自己,并执行迭代器该有的各种行为(前进、后退、取值、取用成员...)
+	至于算法,完全可以独立于容器和迭代器之外自行发展,只要设计时以迭代器为对外接口就行
+*/ 
+
+traits	
+/*
+	每一个要相容于stl的class需要遵照stl规定typedef定义型别特性，stl内部利用traits机制萃取这些特性
+	针对不同特性，利用函数重载或模板特化实现功能函数分派，取得最优策略
+	c++不具备java语言的反射机制，使用traits可弥补
+*/
+		nested typedef定义可以萃取的特性
+		定义空对象作为特性标识
+		针对不同情况定义特化版本改变特性标识
+		定义一组同名的模板功能函数，特性标识作为一个参数类型
+		模板类型推导后得到具体类型，则得到了类型具体的特性标识，利用重载机制和模板特化根据空对象特性标识对功能函数进行函数分派
+		如有必要可以为自己定义的类型X特化一个template<> struct __type_traits<X>,明确X的型别特性
+		
+迭代器	
+	容器(数据结构)和算法分离，使用迭代器将它们联合，每个容器都提供自己的迭代器,[first,last)  => it=first;it!=last,it++
+	T::I
+		I可以是静态数据成员，静态成员函数，嵌套类型
+		若T的类型为模板参数，类型不确定，则T::I没法确定I为静态数据成员，静态成员函数，嵌套类型
+		typename 	T::I，可明确告诉编译器T::I为一个类型名而不是其它
+	每一个迭代器必须遵循约定,自行以nested typedef的方式定义出相应型别(associated types)，特性萃取机traits榨取各个迭代器的特性
+	为了符合规范,任何迭代器都应该提供五个巢状相应型别,以利 traits 萃取，否则与STL无法相容，STL提供std::iterator继承
+	iterator_traits 萃取迭代器的特性，type_traits 萃取型别(type)的特性
+	
+序列式容器
+	array,带泛型的静态数组大小固定
+	vectcor
+		内部可扩容的数组,vector的扩容是申请新空间，复制元素，每次扩容两倍
+		引起vector空间重新配置,则指向原vector的所有迭代器就都失效了，这是程序员易犯的一个错误,务需小心*
+	list
+		环状双向链表，增加一个空白节点，满足[begin,end)特性
+		insert在it指向的位置前面插入，插入后it依然指向以前的元素
+		erase删除it指向的元素，删除后it指向此元素后面的元素
+	slist 
+		单向链表，只提供push_front，因为头插法复杂度为O(1)
+		前向迭代器无法回头，因此在指定位置后插入/删除效率高
+	deque
+		支持高效的首尾双端操作，由中控管理指针，指针管理分段的连续线性空间，扩容时直接在中控添加指针链接分段新空间
+		避免了vector扩容时的复制，但迭代器比较复杂(访问复杂)
+		使用一个连续空间存储指针，每一个指针指向一段连续空间，并在逻辑上提供所有空间是连续的假象
+		对deque元素的排序操作建议复制元素到vector,sort然后在复制到deque比较快速
+	stack/queue
+		使用deque作为底层存储,将其接口改变，在设计模式中称为adapter
+	heap(数据结构的概念)
+		没有提供heap的容器或适配器，提供了一组泛型算法可以让将容器构造为heap(即满足heap关系)，并进行操作
+	priority_queue
+		使用make_heap/push_heap/pop_heap泛型算法将底层容器构建为heap，包装heap构造优先队列
+		可指定底层容器，和大小比较规则,默认使用vector存储来实现heap
+		
+关联容器
+	有序容器
+		rb-tree*
+			有序容器的底层容器
+			AVL tree 约束左右子树高度相差不能多于1 ->进化版AVL树 rb-tree
+			平均对数时间操作
+		set 
+			不包含重复元素
+			使用set的find查找效率更高，使用泛型find只是按照顺序查找不推荐
+		map
+			rb-tree为底层，每个节点是一个pair,键不能重复
+			使用map的find查找效率更高，使用泛型find只是按照顺序查找不推荐
+	无序容器
+		hash*
+			无序容器的底层容器
+			平均常数时间操作
+			开链法
+仿函数
+	主要为搭配STL算法使用,为支持adapter,functor需要typedef型别信息(可直接继承STL提供的基类)，以便adapter可以取到这些信息
+		返回值型别
+		参数型别
+	分类
+		一元/二元
+		算术/逻辑/关系	
+配接器
+	容器
+	迭代器
+		插入迭代器
+			将赋值导引为插入的迭代器
+		反转迭代器
+			逆反迭代器的前进方向，容器的rbegin/rend返回的就是反转迭代器
+			反转迭代器的*对象提领是将配接的正向迭代器退后一格提领，反转迭代器正向迭代器的前进后退
+		流迭代器*
+			输入流迭代器
+				绑定迭代器到&cin,绑定后处于等待用于输入状态，对迭代器的++操作导引调用*cin >> value
+			输出流迭代器
+				绑定迭代器到&cout,对迭代器的=操作，导引调用*cout << cout ， 迭代器构造时还可以指定分割符	
+			#非常具有学习价值
+	functor
+		灵活度高，可多次配接，通过绑定，组合，修饰创造出无限的表达式
+		使用辅助组件处理将普通的函数，成员函数，函数指针处理以满足STL的配接性
+		函数/函数指针，成员函数/成员指针通过提供的wrap，可包装为适应STL的functor
+		
+算法
+	类型分派双层结构*,特定类型特化提高性能
+	作用域迭代器标识的区间的，因此前两个参数为迭代器[first,last)
+	迭代器越界*
+		算法作用在range，迭代器执行*iter = value
+		如果range超过容器的大小，则引起未知的错误，解决方法是使用配接一个插入迭代器，将 =导引为push/insert操作，容器会自动扩容
+	copy - 极致效率
+		特化 char/wcahr* memmove
+		trival memmove
+		输入迭代器 ;first !=last; first++
+		随机迭代器 n = last - first; n > 0 ;--n
+	set算法*
+		sorted range ,不同于数学上的集合，算法要求作用域为排序的range,允许重复
+		排序使集合算法更容易操作		
+	includes
+	merge
+	partition
+	rotate
+	search s1 s2
+		s2是否s1的子序列 
+	unique
+		只移除相邻重复元素，若序列有序，则所有重复元素相邻
+	permutation 字典序全排列
+	rand shuffle 
+		循环 range,并随机产生另一个index与ith交换
+	partial_sort 
+		[first,middle)组织为max heap，堆顶最大元素持续与[middle,last)比较将Top k个元素抽到前面,然后sort_heap
+	sort* 
+		仅适用于vector和deque
+		数据量大用快排，数据量小用插入，快排达到递归深度限制(	__lg)使用堆排序
+	nth element

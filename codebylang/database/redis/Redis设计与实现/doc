@@ -1,0 +1,139 @@
+<Redis设计与实现>
+
+/*
+Redis是内存KV数据库，因此运行时数据都存储在内存中，持久化只是对内存进行备份的安全策略
+注意到redis很多数据结构基本形式类似
+struct{
+	encoding=类型
+	len=长度
+	free=余量
+	buf[] 存储具体内容
+}
+*/
+
+底层数据结构
+	SDS
+		redis不直接使用c字符串(仅在无需修改的字面量使用),创建了SDS结构,用于保存字符串和用做缓冲区,包装了c传统字符串实现了更安全，更高效的API操作
+		通过len和free记录buf使用和未使用字节数，实现了空间预分配和惰性释放
+			小于1M则扩展为2*len+1空间，大于1M扩展1M
+		使用len标志串长度，不是以\0来找结尾，SDS API是以处理二进制方式处理存放在buf中的字符，不会对数据做任何假设操作，因此API是二进制安全的
+		虽然二进制安全，但在字符串结尾都附加了\0,可以保证重用部分c字符串函数,为编程提供了方便
+	
+	链表
+		链表key，发布与订阅，慢查询，监视器,保存客户端状态信息，构建客户端缓冲区等都用到了链表
+		双向，无环，带头尾指针链表，定义了struct list来持有链表的head and tail以及len等信息。
+		使用void *来保存节点值，并可以为值提供free,match,dup回调操作函数，因此链表可以保存不同类型的值
+	
+		void *可以接受任何类型的赋值(有的编译器不能接受小数,因为地址是整数)
+		void *可以赋值给任何类型的变量 但是需要进行强制转换
+	
+	字典
+		元素存放在数组中，hash=hashFuction(key),index=hash & mask,index为存放索引，(当size为2的n次方时,令mask=size-1,则n&mask==n%size)，index相同时使用链地址法解决冲突
+		load_factor=used/size;根据负载因子决定收缩和扩展
+		收缩/扩展需要rehash,从ht[0]转移到ht[1],这个rehash过程不是一次完成的，而是一个阶段，在此阶段字典执行添加，删除查找等操作时顺便执行rehash操作，分摊时间复杂度，在此阶段两个表也同时使用。
+	
+	整数集合
+		当集合只包含少量整数时使用	
+		intset 使用编码存储类型，length存储长度，底层使用一个int8(byte)类型的数组存储数据,如何解释取决于编码存储类型
+	ziplist
+	skiplist
+	
+对象系统
+	redis没有直接使用 sds list ziplist intset dict等底层数据结构，而是建立了一个统一的对象系统
+	对象承上启下使用下层存储数据结构，为上层使用是整个redis的核心
+		
+	redisObject{
+		type
+			redis提供给用户使用的类型 字符串	列表 HASH 集合 有序集合
+			key是必然是字符串对象,TYPE key可得到值的类型
+		encoding
+			编码决定了对象使用的底层数据结构,一种对象对应多个存储形式，根据场景自动转换
+			OBJECT ENCODING 可查看
+			
+			字符串
+				int 存储整数
+				raw 长字符串
+				embstr 为短字符串优化的类型
+			列表
+				ziplist 元素少
+				linkedlist
+			HASH
+				ziplist
+				hashtable
+			集合
+				intset
+				hashtable
+			有序集合
+				ziplist
+				skiplist
+		void *ptr; //指向底层数据结构的指针
+		int refcunt;//引用计数，用于内存垃圾回收和对象共享
+		lru //最近一次访问时间信息	
+		//...
+	}
+-------
+数据库
+	服务器
+		redisServer{
+			int dbnum //数据库数量
+			redisDb *db->[db[0],db[1],db[2],...]
+				系统默认创建16个数据库
+				SELECT 切换数据库
+			list *clients ;//->redisClient->... ,保存了与服务器相连的客户端状态
+			redisClient *lua_client;//执行lua脚本的伪客户端
+			
+			dict *pubsub_channels; //保存所有的订阅关系
+				频道:客户端->...
+			monitors //-> 客户端->...
+				执行MONITR命令的客户端可以成为监视器
+				服务器收到请求处理请求同时将命令信息发送到所有监视器
+		}
+		
+		redisDb{
+			dict *dict; //key space字典,保存数据库中所有键值,CRUD
+			dict *expires //键过期字典
+				设置过期时间当前时间+TTL,后续可直接通过时间戳比较得到
+				过期删除策略
+					定期删除，周期性检查
+					需要空间时删除 执行读写操作时检查
+		}
+		
+		redisClient{ //服务器内部表示客户端状态的对象	
+			redisDb *db;//记录客户端当前的目标数据库,指向redisServer中的db数组的具体元素
+			int fd //套接字
+				>-1 来自网络的套接字
+				-1 伪刻画端lua脚本或AOF文件请求
+			robj *name 
+			flags //标识角色以及状态
+			sds querybuf;//输入缓冲区
+			sds buf;//执行命令结果，输出缓冲区
+			//时间相关
+			//身份认证
+		}
+		
+		RDB持久化
+			RDB文件结构
+				"REDIS" 凭借magic可迅速检查文件是否RDB文件
+				version
+				持久化内容
+					SELECTED 
+					db number
+					kv对 kv对的内容以编码压缩的格式存储内容
+						TYPE
+						key
+						value
+				EOF
+				checksum
+		AOF持久化
+			保存执行过的命令	
+			AOF重写
+				随时间AOF文件会过大
+				重写不根据AOF文件生成新文件，而是根据数据库存储存储的KV对每个KV写一条生成command，不包含任何冗余
+				
+主从服务器复制
+		生成RDB传送到从服务器,新命令在命令缓冲区，因此发送RDB后传送命令缓冲区命令
+		主从复制维持一个offset，表示复制字节数，offset用来确认主从状态是否一致，从服务器一秒一次发送offset心跳数据来检测是否命令丢失
+		主服务器维持一个固定长度的FIFO存储一段历史命令，当主从不一致时需要重传
+
+慢查询日志
+	记录执行超过指定时长的命令，是优化的重要依据

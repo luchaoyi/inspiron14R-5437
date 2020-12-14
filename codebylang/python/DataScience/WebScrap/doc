@@ -1,0 +1,72 @@
+爬虫步骤:
+	1.了接robots.txt 和sitemap
+	2.估计爬取目标规模以决定串行还是分布式
+	3.识别构建网站的技术类型，使用builtwith模块，网站不同实现技术有不同的特性.如:
+		动态加载，javascript嵌入HTML,...
+	4.查询网站注册者信息,whois协议.python-whois模块封装了此协议.
+	
+import builtwith
+builtwith.parse("http://example.webscraping.com")
+Out[2]: 
+{u'javascript-frameworks': [u'jQuery', u'Modernizr', u'jQuery UI'],
+ u'programming-languages': [u'Python'],
+ u'web-frameworks': [u'Web2py', u'Twitter Bootstrap'],
+ u'web-servers': [u'Nginx']}
+ 
+import whois
+whois.whois("www.baidu.com")
+Out[6]: 
+{u'updated_date': None,
+ u'status': None,
+ u'name': None,
+ u'dnssec': None,
+ u'city': None,
+ u'expiration_date': None,
+ u'zipcode': None,
+ u'domain_name': None,
+ u'country': None,
+ u'whois_server': u'whois.paycenter.com.cn',
+ u'state': None,
+ u'registrar': u'XIN NET TECHNOLOGY CORPORATION',
+ u'referral_url': u'http://www.xinnet.com',
+ u'address': None,
+ u'name_servers': None,
+ u'org': None,
+ u'creation_date': None,
+ u'emails': None}
+ 
+#URl Error 
+#4xx  表示请求出现错误,如404 Not Found
+#5xx  表示服务器端出现错误，如503 服务器过载,5xx可以retries
+
+def 爬虫:
+	1.下载器:下载网页
+		下载网页
+		缓存网页,对下载到的html网页缓存起来，请求再次下载已下载网页时，直接返回缓存网页.
+	2.从html中提取感兴趣的数据
+		调用数据提取的callback函数
+
+缓存网页:
+	磁盘缓存:
+		生成文件名方法：生成文件名映射存在冲突可能
+			从网页路径按修改规则生成一个路径名，这样可以不用存储映射关系，计算映射关系.
+			生成一个随机字符串,需要保存映射关系.
+			hash(url)，生成文件名
+		考虑压缩存储的内容来节省磁盘:
+			fp.write(zlib.compress(pickle.dumps()))
+			pickle.loads(zlib.decompress(fp.read()))
+		清理过期数据:
+			为网页生成一个时间戳,如果过期则重新下载			
+		
+		缺点:
+			文件系统依赖操作系统，出现很多限制如:文件名字符，文件名长度，目录下最大文件数，文件系统存储文件数等.使用数据库缓存可以免受文件系统限制
+			
+PySide or PyQt4库通过Qt(C++ QT)框架可以获得Qt框架中包含的WebKit浏览器渲染引擎的python接口,使用渲染引擎执行javascript.
+爬虫自动登录&自动注册，模拟浏览器发送post请求提交表单数据，并管理cookie.
+对于比较复杂的登录(如验证码识别困难等)，可考虑采用浏览器登录后使用浏览器存储的本地cookie.
+	
+
+			
+
+
+

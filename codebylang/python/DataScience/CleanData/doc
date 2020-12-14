@@ -1,0 +1,34 @@
+问题陈述
+数据收集与存储 
+数据清洗        
+数据分析       
+数据展现和可视化 
+
+
+wps文本分列向导可以指定对文本分列
+	数据->分列
+			->分割符号
+			->固定宽度
+
+MySQL导入电子表格数据
+	将数据另存为CSV,许多数据库系统支持导入CSV
+	
+文本编辑器列选模式方便操作列，以及正则表达式支持方便查找替换
+
+从pdf提取数据
+	python 的pdfMiner包有pdf2txt和dumpPDF包
+		pdf2txt.py -p1 .pdf 从PDF提取文 本数据,p1代表第一页
+		不能处理表格
+	Tabula支持从pdf提取表格数据
+	Acobat付费软件功能强大
+	
+使用正常表达式提取数据时，推荐使用http://Pythex.org这样的正则表达式测试工具
+
+
+python csvkit包
+	/*csvclean   csvformat  csvjoin    csvlook    csvsort    csvstack   csvcut     csvgrep    csvjson    csvpy      csvsql     csvstat*/
+	
+	csvjson csv->json
+	csvcut 从csv中提取部分数据(行,列)
+	csvformat 改变换行符，分割符等
+	

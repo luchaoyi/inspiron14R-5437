@@ -1,0 +1,132 @@
+元编程
+	使用语言的编译期*子集编程,静态code控制动态code提高性能
+	元数据是不可变的，元函数无副作用，核心是类型计算
+	元数据-编译期可以操纵的实体
+		类型 
+		非类型
+			枚举，函数，常量整数，全局对象指针和引用，指向成员的指针
+	#编译期可以得到完全的类型信息和常量值信息(不能处理浮点)
+	
+基于策略的类设计
+	良好的设计应该在编译期表现出大部分的约束（静态的）
+	型别安全下的host class的功能扩充(go 有非侵入式接口的类似特性)
+	模板参数提供策略class，策略class的组合可生产多样可能
+	policy class使host class可配置，polciy可配置行为和结构，一个class分解被分解为一堆policy class，分解后独立可变
+	分解准则
+		事情能使用一种以上的策略，则应该独立出来
+		保证policy class分解的正交性
+		可配置行为和结构，如型别转换，copy等行为都可以策略化*
+	析构函数
+		当host class以public继承自policy class(聚合/继承视情况选择)时，delete policy class的指针产生不可预期的行为
+		定义一个protected析构函数，这样只有派生自policy的class才可摧毁此对象
+	policy的兼容性(如何安全转换)
+		禁止强制转换，因为host<policy0>和host<policy1>本质是不同的class可不是一个继承体系
+		需要时可明确实现类型转换的构造函数
+		
+类型分派
+	特化/偏特化/函数重载
+	函数模板不能偏特化，能使用重载间接实现类似特性*
+	型别映射
+		Int2Type<常数>
+		使用某具体类仅作函数重载类型分派开销大于使用Type2Type<具体类>开销
+	sizeof(expr) 
+		隐藏了一个推导表达式型别的完整机制，即类型推导机制
+		不对表达式求值, 只做类型推导
+	type_info*
+		typeid返回type_info对象引用，type_info对象采用的static存储 #编译器生成，存储static区域
+		不支持复制语义，因此只能存储它的指针，而不是它本身	
+trait	
+	依赖于模板特化和偏特化技术
+	型别选择 依据bool值寻找型别
+	型别侦测 侦测是否某种型别,或携带某种特性
+	型别分派 基于侦测的型别元信息，利用特化/重载选择不同的策略 #STL大量使用
+	修饰(const/volatile ...)去除	
+		
+command
+	接口分离 调用者和被调用者分离,可以将调用延期
+	时序分离 收集处理动作所需要的环境信息(装载信息到command对象)和动作执行(调用command对象执行转发请求)不在一个时刻
+	Functor
+		最后具有value语义（明确定义copy语义），解除生命周期管理的负担
+	#本章的很多技巧在c++11可以直接使用Args...,模板类类型参数,std::forward等后已经不需要那么
+	Functor和函数指针、方法指针等使用，典型的小对象场景,可继承smallobject节省内存，提供分配效率
+	undo/redo 维护一个stack,do(动作的执行者)负责将自己对应的undo/redo动作压入到栈中
+	/*c++11 典型函数式编程,主要借助functor实现
+		auto func = [](int a,intb){...};
+		std::function f = std::bind(func,std::ref(a),std::ref(b),...); //柯里化
+		f();
+		#有一些std::mem_fn,std::function等将函数，成员方法等包装为functor
+	*/
+
+单例
+	静态/全局变量初始化
+		加载时初始化
+			基本变量使用编译期常量初始化的，即值直接编到文件中的，加载文件到内存就相当于初始化了#.data
+		运行时初始化 
+			需要执行代码才能初始化的
+			不能得到编译器常量的或需要执行函数/构造函数初始化的
+			#.init段执行代码，不同文件的初始化代码插入顺序，顺序难以定死，因此处于不确定状态
+			函数内初始化
+				函数内的需要执行代码才能初始化的变量，在函数执行时才初始化，且仅初始化一次，顺序有保证
+				#编译器在函数内插入了初始化代码，并将销毁对象的函数注册到了atexit
+				静态局部变量离开作用域也不会销毁，直到程序退出时执行atexit #因为静态对象不在栈上
+				#atexit的注册以LIFO顺序执行，静态对象不仅要考虑创建次序，还要考虑销毁次序
+				#因此尽量避免使用全局/静态变量，更应该避免产生次序上的关系
+	带销毁次序的生命周期管理器
+		对象加入链表时带有优先级，链表会根据优先级排序
+		使用atexit注册一个销毁函数(此函数从链表尾部取出元素并delete obj)
+		长寿的在头部，一下列注册函数在程序结束前执行，每次尾部取一个元素并delete，保证所有元素按链表顺序逆向析构
+		6->5->3->1
+		
+智能指针
+	smart ptr的成员函数和所指对象的成员函数容易混淆,建议smart仅使用friend 非成员函数，将方法提到class外!!!*
+	深copy的对象切割问题*
+		copy对象所指对象，但对象可能指向的是基类，因此继承层次建议定义一个专门的virtual clone函数以供 smart ptr copy调用
+	move - 摧毁式copy
+	不提倡重载&,暴露了地址给用户，所有权概念被打破
+	shared ptr
+		ref count 
+		ref link*
+			并不需要知道ref count确切数目,将对象的owner添加到一个双向 list,当list为空时ref = 0; 
+			#owner的析构负责从list删除
+		多线程下的ref count/link的安全性
+	#禁止和提供通用重要
+	安全检查/安全-速度制衡
+		初始化检测 是否可以使用nullptr初始化?
+		引用时检测 
+		
+object factory 
+	c++是静态型别的class由编译前程序员定义编译器静态产生，object由程序运行时产生，class不是object
+	静态型别方便优化以及安全检查
+	对象注册自己的creator到object factory则object factory就可以生产此对象
+	
+abstract factory 
+	不同的情况，new不同的工厂，一个factory代表了一个体系(族系)的对象
+	
+vistor	
+	type switch dynamic_cast是运行时多态行为应该考虑虚函数/visitor等而不是使用type switch dynamic_cast ！！！
+	优点
+		classes继承体系中，增加新class很容易，但增加新的虚函数，则需要自顶向下修改所有类
+		若需要经常增加虚函数，不增加新class则适合使用vistor,使用了vistor则变的很难增加新的class
+		因此适合于被访问的classes继承体系稳定下，且需要增加新的虚函数，将操作从对象中分离了出来
+		通过visted对象的虚函数accept(Visitor* v) {v->visit(this)}来实现类型分派，将调用不同的visit函数
+		例：
+			ast中增加新一类codegen,而增加一个新的vistor很容易，
+			但ast中若要增加一个新的class则，所有的vistor都要增加一个新的函数
+	缺点
+		vistor只能访问受访对象的public区域
+	GOF vistor
+		基类vistor包含了一组针对受访类型都有visit的虚函数，而实作vistor必须实现所有的虚函数
+	Acyclic vistor
+		每一个受访对象对应一个vistor class的继承体系构成,通过继承也可以组合为可以访问多个class的visitor
+		优点：受访对象基础体系添加一个新的对象更容易一点(相对GOF vistor)
+		XxxVistable {
+			accept(BaseVistor& bs) {
+			//转为对应Vistor
+			auto p = dynamic_cast<XxxVistor*>(&bs);
+			if (p) { p->visit(*this);}
+			} else // catch All
+		}
+		#利用dynamic cast从一个继承体系跳到另一个体系
+		#GOF vistor 一个class包含一组visit,visit受访层次的不同对象
+		#Acyclic vistor 一个受访对象对应一个visitor,受访对象accept BaseVistor 然后dynamic_cast为XxxVistor
+		#多继承+dynamic_cast 时间成本较大！！！

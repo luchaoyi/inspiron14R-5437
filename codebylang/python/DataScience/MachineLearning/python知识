@@ -1,0 +1,391 @@
+1.map函数
+map函数会根据提供的函数对指定序列做映射。
+map函数的定义：
+map(function, sequence[, sequence, ...]) -> list
+通过定义可以看到，这个函数的第一个参数是一个函数，剩下的参数是一个或多个序列，返回值是一个集合。
+function可以理解为是一个一对一或多对一函数，map的作用是以参数序列中的每一个元素调用function函数，返回包含每次function函数返回值的list。
+比如要对一个序列中的每个元素进行平方运算：
+map(lambda x: x ** 2, [1, 2, 3, 4, 5])
+返回结果为：
+[1, 4, 9, 16, 25]
+在参数存在多个序列时，会依次以每个序列中相同位置的元素做参数调用function函数。
+比如要对两个序列中的元素依次求和。
+map(lambda x, y: x + y, [1, 3, 5, 7, 9], [2, 4, 6, 8, 10])
+map返回的list中第一个元素为，参数序列1的第一个元素加参数序列2中的第一个元素(1 + 2)，
+list中的第二个元素为，参数序列1中的第二个元素加参数序列2中的第二个元素(3 + 4)，
+依次类推，最后的返回结果为：
+[3, 7, 11, 15, 19]
+要注意function函数的参数数量，要和map中提供的集合数量相匹配。
+如果集合长度不相等，会以最小长度对所有集合进行截取。
+当函数为None时，操作和zip相似：
+map(None, [1, 3, 5, 7, 9], [2, 4, 6, 8, 10])
+返回结果为：
+[(1, 2), (3, 4), (5, 6), (7, 8), (9, 10)]
+
+
+
+
+
+2.filter函数
+filter函数会对指定序列执行过滤操作。
+filter函数的定义：
+filter(function or None, sequence) -> list, tuple, or string
+function是一个谓词函数，接受一个参数，返回布尔值True或False。
+filter函数会对序列参数sequence中的每个元素调用function函数，最后返回的结果包含调用结果为True的元素。
+返回值的类型和参数sequence的类型相同
+比如返回序列中的所有偶数：
+def is_even(x):
+return x & 1 != 0
+
+filter(is_even, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+返回结果为：
+[1, 3, 5, 7, 9]
+如果function参数为None，返回结果和sequence参数相同。
+
+
+
+
+
+3.reduce函数
+reduce函数，reduce函数会对参数序列中元素进行累积。
+reduce函数的定义：
+reduce(function, sequence[, initial]) -> value
+function参数是一个有两个参数的函数，reduce依次从sequence中取一个元素，和上一次调用function的结果做参数再次调用function。
+第一次调用function时，如果提供initial参数，会以sequence中的第一个元素和initial作为参数调用function，否则会以序列sequence中的前两个元素做参数调用function。
+reduce(lambda x, y: x + y, [2, 3, 4, 5, 6], 1)
+结果为21(  (((((1+2)+3)+4)+5)+6)  )
+reduce(lambda x, y: x + y, [2, 3, 4, 5, 6])
+结果为20
+
+注意function函数不能为None。
+
+
+
+Map函数：
+原型：map(function, sequence)，作用是将一个列表映射到另一个列表，
+
+使用方法：
+
+def f(x):
+
+    return x**2
+
+l = range(1,10)
+
+map(f,l)
+
+Out[3]: [1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+Reduce函数
+原型：reduce(function, sequence, startValue)，作用是将一个列表归纳为一个输出，
+使用方法：
+
+def f2(x,y):
+
+    return x+y
+
+reduce(f1,l)
+
+Out[7]: 45
+
+reduce(f2,l,10)
+
+Out[8]: 55
+
+Filter函数
+原型：filter(function, sequence)，作用是按照所定义的函数过滤掉列表中的一些元素，
+使用方法：
+
+def f2(x):
+
+    return x%2 != 0
+
+filter(f2,l)
+
+Out[5]: [1, 3, 5, 7, 9]
+
+记住：这里的function必须返回布尔值。
+
+Lambda函数
+原型：lambda <参数>: 函数体，隐函数，定义一些简单的操作，
+使用方法：
+
+f3 = lambda x: x**2
+
+f3(2)
+
+Out[10]: 4
+
+还可以结合map、reduce、filter来使用，如：
+
+map(f3,l)
+
+Out[11]: [1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+
+python 调用 shell
+
+最近有个需求就是页面上执行shell命令，第一想到的就是os.system，
+复制代码 代码如下:
+
+os.system('cat /proc/cpuinfo')
+
+但是发现页面上打印的命令执行结果 0或者1，当然不满足需求了。
+尝试第二种方案 os.popen()
+复制代码 代码如下:
+
+output = os.popen('cat /proc/cpuinfo')
+print output.read()
+
+通过 os.popen() 返回的是 file read 的对象，对其进行读取 read() 的操作可以看到执行的输出。但是无法读取程序执行的返回值）
+
+尝试第三种方案 commands.getstatusoutput() 一个方法就可以获得到返回值和输出，非常好用。
+复制代码 代码如下:
+
+(status, output) = commands.getstatusoutput('cat /proc/cpuinfo')
+print status, output
+
+
+我们使用Python如何调用Linux的Shell命令？下面来介绍几种常用的方法：
+1. os 模块
+
+1.1. os模块的exec方法族
+Python的exec系统方法同Unix的exec系统调用是一致的。这些方法适用于在子进程中调用外部程序的情况，因为外部程序会替换当前进程的代码，不会返回。( 这个看了点 help(os)  --> search "exec" 的相关介绍，但是没太搞明白咋使用)
+
+
+1.2. os模块的system方法
+system方法会创建子进程运行外部程序，方法只返回外部程序的运行结果。这个方法比较适用于外部程序没有输出结果的情况。
+[python] view plaincopy在CODE上查看代码片派生到我的代码片
+>>> import os  
+>>> os.system("echo \"Hello World\"")   # 直接使用os.system调用一个echo命令  
+Hello World         ——————> 打印命令结果  
+0                   ——————> What's this ? 返回值？  
+>>> val = os.system("ls -al | grep \"log\" ")   # 使用val接收返回值  
+-rw-r--r--  1 root       root       6030829 Dec 31 15:14 log    ——————> 此时只打印了命令结果  
+>>> print val             
+0                   ——————> 注意，此时命令正常运行时，返回值是0  
+>>> val = os.system("ls -al | grep \"log1\" ")  
+>>> print val         
+256                 ——————> 使用os.system调用一个没有返回结果的命令，返回值为256～  
+>>>   
+
+注意：上面说了，此方法脂肪会外部程序的结果，也就是os.system的结果，所以如果你想接收命令的返回值，接着向下看～
+
+1.3. os模块的popen方法
+当需要得到外部程序的输出结果时，本方法非常有用，返回一个类文件对象，调用该对象的read()或readlines()方法可以读取输出内容。比如使用urllib调用Web API时，需要对得到的数据进行处理。os.popen(cmd) 要得到命令的输出内容，只需再调用下read()或readlines()等 如a=os.popen(cmd).read()
+[python] view plaincopy在CODE上查看代码片派生到我的代码片
+>>> os.popen('ls -lt')                  # 调用os.popen（cmd）并不能得到我们想要的结果  
+<open file 'ls -lt ', mode 'r' at 0xb7585ee8>  
+>>> print os.popen('ls -lt').read()     # 调用read()方法可以得到命令的结果  
+total 6064  
+-rwxr-xr-x 1 long       long            23 Jan  5 21:00 hello.sh  
+-rw-r--r-- 1 long       long           147 Jan  5 20:26 Makefile  
+drwxr-xr-x 3 long       long          4096 Jan  2 19:37 test  
+-rw-r--r-- 1 root       root       6030829 Dec 31 15:14 log  
+drwxr-xr-x 2 long       long          4096 Dec 28 09:36 pip_build_long  
+drwx------ 2 Debian-gdm Debian-gdm    4096 Dec 23 19:08 pulse-gylJ5EL24GU9  
+drwx------ 2 long       long          4096 Jan  1  1970 orbit-long  
+>>> val = os.popen('ls -lt').read()     # 使用变量可以接收命令返回值  
+>>> if "log" in val:                    # 我们可以使用in来判断返回值中有木有一个字符串  
+...     print "Haha,there is the log"  
+... else:  
+...     print "No,not happy"  
+...  
+Haha,there is the log  
+
+
+2. commands 模块
+
+使用commands模块的getoutput方法，这种方法同popend的区别在于popen返回的是一个类文件对象，而本方法将外部程序的输出结果当作字符串返回，很多情况下用起来要更方便些。
+主要方法:  
+*   commands.getstatusoutput(cmd)         返回(status, output)
+*   commands.getoutput(cmd)                   只返回输出结果
+*   commands.getstatus(file)                     返回ls -ld file的执行结果字符串，调用了getoutput，不建议使用此方法
+
+[python] view plaincopy在CODE上查看代码片派生到我的代码片
+long@zhouyl:/tmp/tests$ python  
+Python 2.7.3 (default, Jan  2 2013, 16:53:07)   
+[GCC 4.7.2] on linux2  
+Type "help", "copyright", "credits" or "license" for more information.  
+>>> import commands  
+>>> commands.getstatusoutput('ls -lt')      # 返回(status, output)  
+(0, 'total 5900\n-rwxr-xr-x 1 long long      23 Jan  5 21:34 hello.sh\n-rw-r--r-- 1 long long     147 Jan  5 21:34 Makefile\n-rw-r--r-- 1 long long 6030829 Jan  5 21:34 log')  
+>>> commands.getoutput('ls -lt')            # 返回命令的输出结果（貌似和Shell命令的输出格式不同哈～）  
+'total 5900\n-rwxr-xr-x 1 long long      23 Jan  5 21:34 hello.sh\n-rw-r--r-- 1 long long     147 Jan  5 21:34 Makefile\n-rw-r--r-- 1 long long 6030829 Jan  5 21:34 log'  
+>>> commands.getstatus('log')               # 调用commands.getoutput中的命令对'log'文件进行相同的操作  
+'-rw-r--r-- 1 long long 6030829 Jan  5 21:34 log'  
+>>>   
+
+
+3. subprocess模块
+
+根据Python官方文档说明，subprocess模块用于取代上面这些模块。有一个用Python实现的并行ssh工具—mssh，代码很简短，不过很有意思，它在线程中调用subprocess启动子进程来干活。
+[python] view plaincopy在CODE上查看代码片派生到我的代码片
+>>> from subprocess import call  
+>>> call(["ls", "-l"])  
+
+subprocess与system相比的优势是它更灵活（你可以得到标准输出，标准错误，“真正”的状态代码，更好的错误处理，等..）。我认为使用os.system已过时，或即将过时。
+
+4. 众方法的比较以及总结
+4.1. 关于 os.system 
+os.system("some_command with args")将命令以及参数传递给你的系统shell，这很好，因为你可以用这种方法同时运行多个命令并且可以设置管道以及输入输出重定向。比如：
+os.system("some_command < input_file | another_command > output_file")
+然而，虽然这很方便，但是你需要手动处理shell字符的转义，比如空格等。此外，这也只能让你运行简单的shell命令而且不能运行外部程序。
+
+4.2. 关于os.popen
+使用stream = os.popen("some_command with args")也能做与os.system一样的事，与os.system不同的是os.popen会返回一个类文件对象，使用它来访问标准输入、输出。
+4.3. 关于subprocess.popen
+subprocess模块的Popen类，意图作为os.popen的替代，但是因为其很全面所以比os.popen要显得稍微复杂。
+比如你可以使用  print Popen("echo Hello World", stdout=PIPE, shell=True).stdout.read()  来替代  print os.popen("echo Hello World").read()。但是相比之下它使用一个统一的类包括4中不同的popen函数还是不错的。
+
+4.4. 关于subprocess.call
+subprocess模块的call函数。它基本上就像Popen类并都使用相同的参数，但是它只简单的等待命令完成并给你返回代码。比如：
+return_code = subprocess.call("echo Hello World", shell=True)
+
+
+os模块中还有C中那样的fork/exec/spawn函数，但是我不建议直接使用它们。subprocess可能更加适合你。
+
+
+
+python矩阵运算
+
+Python使用NumPy包完成了对N-维数组的快速便捷操作。使用这个包，需要导入numpy。SciPy包以NumPy包为基础，大大的扩展了numpy的能力。为了使用的方便，scipy包在最外层名字空间中包括了所有的numpy内容，因此只要导入了scipy，不必在单独导入numpy了！但是为了明确哪些是numpy中实现的，哪些是scipy中实现的，本文还是进行了区分。以下默认已经：import
+numpy as np 以及 impor scipy as sp
+下面简要介绍Python和MATLAB处理数学问题的几个不同点。1.MATLAB的基本是矩阵，而numpy的基本类型是多为数组，把matrix看做是array的子类。2.MATLAB的索引从1开始，而numpy从0开始。
+1.建立矩阵
+a1=np.array([1,2,3],dtype=int)  
+#建立一个一维数组，数据类型是int。也可以不指定数据类型，使用默认。几乎所有的数组建立函数都可以指定数据类型，即dtype的取值。
+a2=np.array([[1,2,3],[2,3,4]])  
+#建立一个二维数组。此处和MATLAB的二维数组（矩阵）的建立有很大差别。
+同样，numpy中也有很多内置的特殊矩阵：
+b1=np.zeros((2,3))  
+ #生成一个2行3列的全0矩阵。注意，参数是一个tuple：(2,3)，所以有两个括号。完整的形式为：zeros(shape,dtype=)。相同的结构，有ones()建立全1矩阵。empty()建立一个空矩阵，使用内存中的随机值来填充这个矩阵。
+b2=identity(n)   #建立n*n的单位阵，这只能是一个方阵。
+b3=eye(N,M=None,k=0)  
+ #建立一个对角线是1其余值为0的矩阵，用k指定对角线的位置。M默认None。
+此外，numpy中还提供了几个like函数，即按照某一个已知的数组的规模（几行几列）建立同样规模的特殊数组。这样的函数有zeros_like()、empty_like()、ones_like()，它们的参数均为如此形式：zeros_like(a,dtype=)，其中，a是一个已知的数组。
+c1=np.arange(2,3,0.1)  
+#起点，终点，步长值。含起点值，不含终点值。
+c2=np.linspace(1,4,10)  
+ #起点，终点，区间内点数。起点终点均包括在内。同理，有logspace()函数
+d1=np.linalg.companion(a)  
+ #伴随矩阵
+d2=np.linalg.triu()/tril()  
+#作用同MATLAB中的同名函数
+e1=np.random.rand(3,2)  
+ #产生一个3行2列的随机数组。同一空间下，有randn()/randint()等多个随机函数
+fliplr()/flipud()/rot90()  
+ #功能类似MATLAB同名函数。
+xx=np.roll(x,2)  
+#roll()是循环移位函数。此调用表示向右循环移动2位。
+2.数组的特征信息
+先假设已经存在一个N维数组X了，那么可以得到X的一些属性，这些属性可以在输入X和一个.之后，按tab键查看提示。这里明显看到了Python面向对象的特征。
+X.flags    #数组的存储情况信息。
+X.shape  
+ #结果是一个tuple，返回本数组的行数、列数、……
+X.ndim   #数组的维数，结果是一个数
+X.size    #数组中元素的数量
+X.itemsize  
+ #数组中的数据项的所占内存空间大小
+X.dtype    #数据类型
+X.T   #如果X是矩阵，发挥的是X的转置矩阵
+X.trace()    #计算X的迹
+np.linalg.det(a)   #返回的是矩阵a的行列式
+np.linalg.norm(a,ord=None)  
+ #计算矩阵a的范数
+np.linalg.eig(a)  
+ #矩阵a的特征值和特征向量
+np.linalg.cond(a,p=None)  
+ #矩阵a的条件数
+np.linalg.inv(a)  
+ #矩阵a的逆矩阵
+3.矩阵分解
+常见的矩阵分解函数，numpy.linalg均已经提供。比如cholesky()/qr()/svd()/lu()/schur()等。某些算法为了方便计算或者针对不同的特殊情况，还给出了多种调用形式，以便得到最佳结果。
+4.矩阵运算
+内积（数量积，点积），外积（叉积）
+np.dot(a,b)用来计算数组的点积；vdot(a,b)专门计算矢量的点积，和dot()的区别在于对complex数据类型的处理不一样；innner(a,b)用来计算内积；outer(a,b)计算外积。
+专门处理矩阵的数学函数在numpy的子包linalg中定义。比如np.linalg.logm(A)计算矩阵A的对数。可见，这个处理和MATLAB是类似的，使用一个m后缀表示是矩阵的运算。在这个空间内可以使用的有cosm()/sinm()/signm()/sqrtm()等。其中常规exp()对应有三种矩阵形式：expm()使用Pade近似算法、expm2()使用特征值分析算法、expm3()使用泰勒级数算法。在numpy中，也有一个计算矩阵的函数：funm(A,func)。
+5.索引
+numpy中的数组索引形式和Python是一致的。如：
+x=np.arange(10)
+print x[2]  
+ #单个元素，从前往后正向索引。注意下标是从0开始的。
+print x[-2]  
+ #从后往前索引。最后一个元素的下标是-1
+print x[2:5]  
+ #多个元素，左闭右开，默认步长值是1
+print x[:-7]  
+ #多个元素，从后向前，制定了结束的位置，使用默认步长值
+print x[1:7:2]   #指定步长值
+x.shape=(2,5)  
+ #x的shape属性被重新赋值，要求就是元素个数不变。2*5=10
+print x[1,3]  
+ #二维数组索引单个元素，第2行第4列的那个元素
+print x[0]   #第一行所有的元素
+y=np.arange(35).reshape(5,7)  
+ #reshape()函数用于改变数组的维度
+print y[1:5:2,::2]  
+ #选择二维数组中的某些符合条件的元素
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+1.建立矩阵
+a1=np.array([1,2,3],dtype=int)   #建立一个一维数组，数据类型是int。也可以不指定数据类型，使用默认。几乎所有的数组建立函数都可以指定数据类型，即dtype的取值。
+a2=np.array([[1,2,3],[2,3,4]])   #建立一个二维数组。此处和MATLAB的二维数组（矩阵）的建立有很大差别。
+同样，numpy中也有很多内置的特殊矩阵：
+b1=np.zeros((2,3))    #生成一个2行3列的全0矩阵。注意，参数是一个tuple：(2,3)，所以有两个括号。完整的形式为：zeros(shape,dtype=)。相同的结构，有ones()建立全1矩阵。empty()建立一个空矩阵，使用内存中的随机值来填充这个矩阵。
+b2=identity(n)   #建立n*n的单位阵，这只能是一个方阵。
+b3=eye(N,M=None,k=0)    #建立一个对角线是1其余值为0的矩阵，用k指定对角线的位置。M默认None。
+此外，numpy中还提供了几个like函数，即按照某一个已知的数组的规模（几行几列）建立同样规模的特殊数组。这样的函数有zeros_like()、empty_like()、ones_like()，它们的参数均为如此形式：zeros_like(a,dtype=)，其中，a是一个已知的数组。
+c1=np.arange(2,3,0.1)   #起点，终点，步长值。含起点值，不含终点值。
+c2=np.linspace(1,4,10)    #起点，终点，区间内点数。起点终点均包括在内。同理，有logspace()函数
+d1=np.linalg.companion(a)    #伴随矩阵
+d2=np.linalg.triu()/tril()   #作用同MATLAB中的同名函数
+e1=np.random.rand(3,2)    #产生一个3行2列的随机数组。同一空间下，有randn()/randint()等多个随机函数
+fliplr()/flipud()/rot90()    #功能类似MATLAB同名函数。
+xx=np.roll(x,2)   #roll()是循环移位函数。此调用表示向右循环移动2位。
+2.数组的特征信息
+先假设已经存在一个N维数组X了，那么可以得到X的一些属性，这些属性可以在输入X和一个.之后，按tab键查看提示。这里明显看到了Python面向对象的特征。
+X.flags    #数组的存储情况信息。
+X.shape    #结果是一个tuple，返回本数组的行数、列数、……
+X.ndim   #数组的维数，结果是一个数
+X.size    #数组中元素的数量
+X.itemsize    #数组中的数据项的所占内存空间大小
+X.dtype    #数据类型
+X.T   #如果X是矩阵，发挥的是X的转置矩阵
+X.trace()    #计算X的迹
+np.linalg.det(a)   #返回的是矩阵a的行列式
+np.linalg.norm(a,ord=None)    #计算矩阵a的范数
+np.linalg.eig(a)    #矩阵a的特征值和特征向量
+np.linalg.cond(a,p=None)    #矩阵a的条件数
+np.linalg.inv(a)    #矩阵a的逆矩阵
+np.linalg.pinv(a)    #矩阵a的伪逆矩阵
+3.矩阵分解
+常见的矩阵分解函数，numpy.linalg均已经提供。比如cholesky()/qr()/svd()/lu()/schur()等。某些算法为了方便计算或者针对不同的特殊情况，还给出了多种调用形式，以便得到最佳结果。
+4.矩阵运算
+np.dot(a,b)用来计算数组的点积；vdot(a,b)专门计算矢量的点积，和dot()的区别在于对complex数据类型的处理不一样；innner(a,b)用来计算内积；outer(a,b)计算外积。
+专门处理矩阵的数学函数在numpy的子包linalg中定义。比如np.linalg.logm(A)计算矩阵A的对数。可见，这个处理和MATLAB是类似的，使用一个m后缀表示是矩阵的运算。在这个空间内可以使用的有cosm()/sinm()/signm()/sqrtm()等。其中常规exp()对应有三种矩阵形式：expm()使用Pade近似算法、expm2()使用特征值分析算法、expm3()使用泰勒级数算法。在numpy中，也有一个计算矩阵的函数：funm(A,func)。
+5.索引
+numpy中的数组索引形式和Python是一致的。如：
+x=np.arange(10)
+print x[2]    #单个元素，从前往后正向索引。注意下标是从0开始的。
+print x[-2]    #从后往前索引。最后一个元素的下标是-1
+print x[2:5]    #多个元素，左闭右开，默认步长值是1
+print x[:-7]    #多个元素，从后向前，制定了结束的位置，使用默认步长值
+print x[1:7:2]   #指定步长值
+x.shape=(2,5)    #x的shape属性被重新赋值，要求就是元素个数不变。2*5=10
+print x[1,3]    #二维数组索引单个元素，第2行第4列的那个元素
+print x[0]   #第一行所有的元素
+y=np.arange(35).reshape(5,7)    #reshape()函数用于改变数组的维度
+print y[1:5:2,::2]    #选择二维数组中的某些符合条件的元素
+
+

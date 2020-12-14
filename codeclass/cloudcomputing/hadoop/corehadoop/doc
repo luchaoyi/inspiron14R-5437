@@ -1,0 +1,324 @@
+0.
+hadoop 1.X 版本以MapReduce模型为核心的版本(include hadoop-0.20x,0.21x,0.22x),使用多年，稳定性和高效性经实践认可
+hadoop 2.X 版本以YARN计算框架为核心新版本，(include hadoop-0.23x等),有更好的计算模式
+1.
+Master/Slave结构
+		  HDFS      MapReduce
+Master 有NameNode和JobTracker
+Slave  有DataNode 和 TaskTracker 
+
+hdfs:分布式文件系统负责分布式存储，基本特征
+	整个集群有单一命名空间，即物理上是分布存储在不同位置，但逻辑上处于一个存储空间
+	数据一致性，适合一次写入多次读取的模型
+	文件被分割为多个块，被分配存储到数据节点，并有一定的复制来保证数据安全
+
+mapreduce:向用户提供规范化编程接口，用户编写map和reduce函数，数据切分，节点通信协作由hadoop负责
+mpi:一种并行计算标准，没有相应的分布式文件系统的支撑，用户需要自己考虑节点通信协调和容错等问题，编程难度大，规模受限.
+	学术研究应用多，商业领域多使用mapreduce编程模型
+
+
+2.
+ssh 免密码登录
+ssh-keygen 可以生成一对 公/私 密钥对，登录属于认证，因此A登录B，B要识别A的身份，因此在B保存A的公钥，A登录B时，B使用公钥配对A的私钥实现身份认证
+要将公钥添加到B主机的authorized_keys文件中
+$ssh-keygen -t rsa -P ''   #-P密码，''代表免密码,注:本机测试时使用 -t dsa不能登录
+$cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys  #添加公钥到被登录主机
+
+
+apache 镜像地址
+	http://mirrors.cnnic.cn/apache/
+
+conf
+	fs.default.name 指定NameNode IP and port 
+	dfs.replication 指定hdfs block被复制次数,一般为3
+	dfs.name.dir 指定NameNode元数据存储目录
+	dfs.data.dir 指定DataNode数据存储目录
+	mapred.job.tracker 指定JobTracker IP and port
+	hadoop-env.sh 用于配置集群特有变量值，伪分布至少配置JAVA_HOME
+
+启动
+	hadoop namenode -format #初次format
+	start-all.sh 启动
+
+启动顺序
+	starting namenode, logging to /home/lcy/usr/hadoop-1.2.1/libexec/../logs/hadoop-lcy-namenode-lcy.out
+	localhost: starting datanode, logging to /home/lcy/usr/hadoop-1.2.1/libexec/../logs/hadoop-lcy-datanode-lcy.out
+	localhost: starting secondarynamenode, logging to /home/lcy/usr/hadoop-1.2.1/libexec/../logs/hadoop-lcy-secondarynamenode-lcy.out
+	starting jobtracker, logging to /home/lcy/usr/hadoop-1.2.1/libexec/../logs/hadoop-lcy-jobtracker-lcy.out
+	localhost: starting tasktracker, logging to /home/lcy/usr/hadoop-1.2.1/libexec/../logs/hadoop-lcy-tasktracker-lcy.out
+
+lcy@lcy:~/usr/hadoop-1.2.1/bin$ jps
+26631 JobTracker
+26896 Jps
+26213 NameNode
+26372 DataNode
+26524 SecondaryNameNode
+26771 TaskTracker
+
+web查看接口
+	hdfs http://localhost:50070/
+	mapreduce http://localhost:50030/
+	
+hadoop编程接口
+	hadoop 原生java API,use java code
+	hadoop Streaming 接口,通过标准输入/输出交互，可以使用任何能读取标准输入和写入标准输出的语言
+	hadoop Pipes 接口 专门针对c/c++的接口，使用socket通信和hadoop交互
+	
+3.
+hdfs	
+	一个Master多个Slave,流式读取文件，冗余备份，保持一致性(修改在所有备份进行).
+	具有shell命令接口，可以使用shell命令直接操作hdfs
+	具有文件权限
+	具有升级和回滚功能
+	高容错性，有备份
+	将计算移动到数据，更适合大数据
+	hdfs架构
+	M/S结构，只有一个逻辑M节点(一个逻辑节点可以包含多个物理主机)
+	hdfs提供API接口
+	hdfs不考虑数据缓存,多以流式读取数据
+	
+NameNode
+	管理元数据
+	SecondaryNameNode定期对NameNode备份
+DataNode
+	存储数据，存储了数据块和数据块id以及它们的映射关系	
+	
+NameNode和Secondary NameNode
+	NameNode启动时从fsimage读取hdfs状态,然后从fs将改动日志文件edits记录的改动写入fsimage，然后生成新的edits,每次启动时合并	
+	客户端读写数据时，从首先从NameNode得到文件的元数据，然后索引DataNode，直接与DataNode通信
+	保持文件一定的复制因子可以避免局部访问过载，提高系统性能.
+	
+数据组织
+	写本地缓存，写数据时会先写入本地临时文件，当写入累积超过一个block大小时，客户端才会联系NameNode将数据flush到DataNode.
+	删除数据会在一定可配置时间段内保存到trash目录，不会立即删除
+
+
+hdfs权限
+	文件 r w
+	目录 r 列出目录内容 
+		 w 目录下新建文件，新建目录
+		 x 访问目录子节点
+		 目录可以设置配额，配额是目录下允许对象的最大数量。
+		 		
+缺点:(新版本可能会改进)
+	访问延时，不适合低延时(数十毫秒)数据访问，hdfs主要针对大吞吐量.
+	大量小文件处理	
+	不支持多用户写，任意文件修改	
+	
+
+4.
+hdfs start
+	start-dfs.sh
+	 hadoop dfsadmin -report 查看集群hdfs
+	
+hadoop 命令接口
+	fs shell 大多命令与unix shell 类似
+		hadoop fs -ls hdfs:/ hdfs
+		hadoop fs -ls file:/ 本地文件系统
+		hadoop fs -help ls  查询帮助
+		hadoop fs -help
+		command
+			copyFromLocal  localsrc -> hdfs:URI  类似命令put
+				 hadoop fs -copyFromLocal lcy / 本地lcy->hdfs:/
+			copyToLocal    hdfs:URI->localdst    类似命令get
+				  hadoop fs -copyToLocal hdfs:/lcy lcy hsfs:/lcy ->copy->本地
+			text 文件输出为文本格式
+				hadoop fs -text /cplcy
+			rmr is rm --r
+			lsr mean ls recursive
+					  
+	hadoop archive 
+		建立har归档文件，归档文件可以以文件系统的方式访问(har:)
+	hadoop distcp
+		分布式复制，在集群间复制数据
+	hadoop fsck <path>
+		hdfs文件系统检查，检查[处理]是否存在受损文件
+
+
+hdfs API 接口
+	java hadoop使用java实现因此直接支持
+	 *hadoop java API  is 原生API 
+	 *
+	 *对fs操作主要是 创建/删除目录和文件读/写
+	 *
+	 * read file:
+	 * 1.读取配置文件获取文件系统相关信息,获得一个fs对象
+	 * 2.给定path由fs对象open(path)文件返回一个输入流对象FSDataInputStream
+	 * 3.FSDataInputStream输入流对象提供支持文件随机读取方法(seek,read...)
+	 * 4.读取完成关闭流对象
+	 * 
+	 * write file:
+	 * 1.like read file step 1 get a FileSystem object
+	 * 2.FileSystem object have function 
+	 *	create 可以指定写文件是否覆盖原文件
+	 *	append 向存在文件追加内容
+	 *	create and append return a FSDataOutputStream
+	 * 3. use FSDataOutputStream object write file,e.g. use FSDataInputStream.write()
+	 * 4. close stream object
+	 *
+	 * more:
+	 * FileSystem.delete() can delete a dir or file 
+	
+	c libhdfs 基于JNI的C接口，libhdfs use JNI call JVM,so 性能受限
+		JNI是Java Native Interface的缩写，它提供了若干的API实现了Java和其他语言的通信
+	webhdfs
+		需要在hdfs配置文件中enable this功能
+		webhdfs rest api provide hdfs http协议的interface,use it can access hdfs by http 协议
+		向hdfs发送http请求，server响应请求返回数据
+		通过url中的附加参数信息指定操作和操作需要的参数
+		http url is http://host:port/webhdfs/v1/path?op=...
+			curl -i http://localhost:50070/webhdfs/v1/lcy?op="LISTSTATUS 得到hdfs:/lcy文件信息
+		
+		curl是利用URL语法在命令行方式下工作的开源文件传输工具	  
+			curl -i 默认是http GET
+			curl -i -X PUT	http PUT
+			curl -i -X POST http POST
+			curl -i -X DELETE http DELETE
+			
+		HTTP中的GET，POST，PUT，DELETE就对应着对这个资源的查，改，增，删4个操作。到这里，大家应该有个大概的了解了，GET一般用于获取/查询资源信息，而POST一般用于更新资源信息
+		GET是通过URL提交数据，那么GET可提交的数据量就跟URL的长度有直接关系了。而实际上，URL不存在参数上限的问题，HTTP协议规范没有对URL长度进行限制。这个限制是特定的浏览器及服务器对它的限制.POST是没有大小限制的，HTTP协议规范也没有进行大小限制,起限制作用的是服务器的处理程序的处理能力.Get是向服务器发索取数据的一种请求，而Post是向服务器提交数据的一种请求.
+
+
+5.
+mapreduce
+	map <key,value> 
+	reduce 合并具有相同key的value值
+mapreduce将数据集切分为数据进行并行处理,基本要指定Map和Reduce函数以及输入和输出路径.基本步骤
+	1.master分配M个map任务和R个reduce任务给工作节点worker
+	2.
+		a.数据分块,执行map任务的worker读取并处理输入数据块，从输入数据片段解析出key/value
+		b.解析出的key/value键值对会传递给用户自定义的|Map函数|，执行Map操作.
+	3.
+		a.缓存的Map输出会通过指定的|分区函数partition|，分成R个区域，写入本地磁盘.同一个key的键值对会发送到相同的reduce worker,通过partition指定某个key如何分配到某个reduce的过程，if指定了|combine|则会在写入磁盘前对key-value进行合并，合并可以减少通信量，节省带宽
+		b.存储key-value集合位置会发送到master,master负责将它转发到执行reduce任务的worker
+	4.
+		a.reduce worker 接受到位置后从map worker磁盘读取数据
+		b.对读取的数据，通过key排序，使相同key的value集合在一起
+	5.将排序后的数据，发送到自定义|Reduce函数|,Reduce输出结果到指定位置
+	
+InputFormat & OutputFormat 接口描述了hadoop输入输出格式，hadoop特定的输入输出类型类实现这两个接口
+DistributedCache可以将文件(e.g. 文本，档案文件，jar)分发到各个计算节点,它可以作为一种基础软件分发机制使用.
+hadoop镜像冗余,数据冗余可以解决容错问题和提高读写速度，而任务备份可以同时执行多个任务备份，运行最快的worker执行结束则结束其它worker,可以优化速度.
+6.
+hadoop命令系统 hadoop [--config confdir] command [genericOptions] [commandOptions]，可以使用hadoop -h查看相关command
+	用户命令
+		hadoop jar 执行jar
+		hadoop classname 执行classname类
+	管理员命令
+		hadoop dfsadmin is hdfs管理客户端命令;e.g. hadoop dfsadmin -report
+		hadoop mradmin  is mapreduce管理客户端
+	
+	
+/*-------------------------------------------------------------------
+lcy@lcy:~$ ls ~/usr/hadoop-1.2.1/
+bin          hadoop-ant-1.2.1.jar          ivy          README.txt
+build.xml    hadoop-client-1.2.1.jar       ivy.xml      sbin
+c++          hadoop-core-1.2.1.jar         lib          share
+CHANGES.txt  hadoop-examples-1.2.1.jar     libexec      src
+conf         hadoop-minicluster-1.2.1.jar  LICENSE.txt  webapps
+contrib      hadoop-test-1.2.1.jar         logs
+docs         hadoop-tools-1.2.1.jar        NOTICE.txt
+-------------------------------------------------------------------*/
+	test command
+		hadoop自带的工具命令在Hadoop-test-x.y.z.jar包中,使用hadoop jar hadoop-test-x.y.z.jar command 使用
+	
+
+	应用命令 
+		 位于hadoop-examples-x.y.z.jar中，已经在hadoop框架下实现的并行应用
+		 hadoop jar ....jar command -libjars 依赖jar ...
+		 	hadoop jar ~/usr/hadoop-1.2.1/hadoop-examples-1.2.1.jar pi 10 100 蒙特卡洛预计pi,10个Map,每个Map采用100次
+		 		
+7.
+	流程分析
+		1.作业提交，通过JobClient类提交，JobClient将Mapper和Reducer和配置JobConf打包为JAR保存在HDFS中,然后将路径提交到Master.hadoop是程序向数据迁移
+		2.JobTracker会创建JobInProgress来跟踪调度这个作业
+		3.JobInProgress创建对应数目TaskInProgress来监控调度MapTask和ReduceTask
+		4.TaskInProgress管理TaskRunner
+		5.TaskRunner装载Jar文件，执行MapTask和ReduceTask
+
+
+Map/Reduce的流程阶段被包装为一个个对象，对象会提供一些方法，供用户重载或实现来控制数据处理的过程
+
+MapTask
+	RunNewMapper流程
+		1.RecordReader object split file in hdfs and call |user 指定的input format object| process split file and output <key,value>
+		2.Map call |user 实现的Map function process| and output <key,value>
+		3.Collector object collect mapper output and exec partitioner,and then output to mem cache
+		4.Spill(内存缓存超过范围，写到本地磁盘),include sort and combiner.
+		5.Merge,对Spill在本地生成的小文件多次Merge and produce a big file.
+
+	
+ReduceTask
+	1.shuffle(copy) and merge,判断是否本地模式，如果不是本地模式则从Mapper读取自己的数据段，并进行合并(合并避免太多小文件)
+	2.Sort,shuffle后顺序混乱，在Reduce前进行排序
+	3.Reducer.run:setup->reduce->cleanup
+
+map对每条数据执行操作，因此输入的是<key,value>，reduce是处理一个key下的多个value,<key,values>,values是同一个key下的列表
+
+
+hadoop Master/Slave 心跳机制
+	Slave启动后主动连接Master,周期性地向Master主动发送心跳包,心跳包包含了Slave自身的状态.Master通过心跳包返回值向Slave发送指令.Master and Slave通过心跳机制沟通
+
+
+-------------------------------------------------------------------
+8.
+streaming
+	Streaming 接口,面向非Java API的MapReduce编程接口，通过标准输入/输出与hadoop框架交互，可以使用任何能操作标准输入和标准输出的语言编写MapReduce并行程序
+	stdin大致对应这键盘，输入重定向stdin<,可以将文件等内容定向到标准输入，即输入可以不来自键盘
+	stdout大致对应屏幕，输出重定向stdout>,可以将要显示在屏幕上的信息重定向到文件，则信息不会显示在文件
+	管道|,可以将一个程序的输出，作为另一个程序的输入
+	hadoop 文件分发，将hdfs上的文件(数据文件、可执行文件、jar等)分发到每个计算节点的本地文件
+	Streaming 的Mapper和Reducer是作为独立的进程启动因此具有更大的灵活性，但同时与Hadoop框架运行在不同的进程空间，因此不能很好的共享底层资源
+	Hadoop Streaming 使用ProcessBuilder类创建管理用户进程Mapper和Reducer.
+
+	集群运算需要在每个节点启动可执行程序，因此需要将可执行程序即执行环境所需必要文件分发到每个计算节点
+	-file 分发本地小文件 
+	-cacheFile 分发位于hdfs上文件，通常将大文件先上传到hdfs然后使用-cacheFile分发
+	-cacheArchive 分发目录结构,将目录压缩后使用它分发，它会自动解压
+
+	Streaming 可以利用在本地测试
+	cat input | mapper | LC_ALL=C sort | reducer > output 
+	Streaming 包还提供了一些聚合函数(max,min,sum,mean,count)
+
+pipes
+	hadoop Pipes 接口 专门针对c/c++的接口，使用socket通信和hadoop框架通信
+	Hadoop Pipes 同样使用ProcessBuilder类创建管理用户进程Mapper和Reducer.
+
+	hadoop pipes的java端作为server socket,c++可执行程序作为client socket
+
+	Pipes接口
+		TaskContext类,Mapper和Reducer使用它来与hadoop框架数据交互.主要接口有,
+			getInputKey(...)
+			getInputValue(...)
+			emit(key,value)
+		还有操作计数器接口
+			getCounter()
+			incrementCounter(...)
+		Pipes对比Streaming,还提供了Partitioner,RecordReader,RecordWriter接口
+
+
+
+9.作业调度
+	hadoop以计算槽位slot来组织集群计算资源,它是计算资源的抽象,是集群资源管理的基本单位.
+	计算槽位slot包括,Map slot and Reduce slot
+	hadoop的调度器设计为一个可插入式模块,因此可以自由选择配置
+
+
+	FIFO调度器
+		默认调度器，优先级队列
+	公平调度器
+		每个用户一个资源池
+	容量调度器
+		多队列，每个队列使用FIFO
+
+
+12.
+	hadoop eclipse 插件，可以在eclipse中生成一个hadoop开发环境(类似与JAVAEE环境，编译后自动部署)，可以在环境中配置mapreduce和hdfs的服务IP和端口。
+插件支持run on hadoop编译后提交，并可以在图形界面查看hdfs文件，目录等.
+	hadoop支持对map输出和reduce输入等数据进行压缩，压缩可以节省存储，加快网络传输。
+	可以通过在代码或命令行参数设置压缩，即压缩类型,streaming中可以使用-D指定设置参数
+
+
+
+
+

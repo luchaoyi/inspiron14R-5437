@@ -1,0 +1,81 @@
+空间换时间
+	将函数返回值等已计算的结果缓存到列表或字典，避免重复计算.
+函数默认参数
+	默认参数(default argument)可以在函数创建时就确定输入值,而不用在运行阶段才确定输入。这种方法只能用于在运行过程中参数不发生变化的函数和对象。
+
+列表表达式比for循环生成更少的指令,性能更好.
+列表表达式一次生成所有元素，生成器表达式动态生成，大列表生成可以考虑使用生成器对象
+生成器对象不支持[index]索引访问，动态生成的,使用for遍历     
+------------------
+字符串:
+	python字符串是不可变对象，创建后不能被改变，每当我们改变(替换，连接等)字符串时都创建了一个新的字符串.
+	字符串连接优化:
+	example1:
+	
+		f=""
+		for word in word_list:
+			f+=word 	
+		优化:
+		f="".join(word_list)
+	
+	example2:
+		d=a+b+c
+		优化:
+		d="%s%s%s%s" % (a,b,c)
+		
+		"""		
+		d
+		Out[13]: {'a': 1, 'b': 2}
+		s="%(a)s%(b)s" %d
+		s
+		Out[15]: '12'
+		"""
+		d="%(a)s%(b)s%(c)s" %locals() #locals返回当前环境	
+		
+-------------------------------------
+PyPy:一种非官方python解释器
+	使用JIT编译器(即时编译器)比CPython快7倍,JIT在运行时同时编译源代码,被执行程序可以在具体os上优化机器码.直接使用pypy就可以获得更快的速度.
+		JIT可以在运行时编译，比静态编译器获得更多的信息，因此可以优化出更优的机器码.
+		JIT会缓存已编译的代码.
+		PyPy的JIT编译器会分析函数热度，对频繁调用的函数进行优化，因此频繁操作构建为函数可能会提高性能,而CPython可能因为频繁的函数调用而降低速度.
+		程序长期运行,那么PyPy的JIT优化将是一个给力的解决方案,循环运行不断优化代码。脚本只运行一次就不再用了,那么PyPy其实比普通的CPython还要慢.
+	
+	pypy安装第三方库
+		1. wget https://bootstrap.pypa.io/get-pip.py
+		2. pypy get-pip.py
+		3. pypy -m pip install ...
+-------------------------------------
+Cython:可以将python扩展版本代码翻译为c/c++语言,然后可以将它编译为Python模块。
+	1.可以生成原生C/C++模块，供python直接调用
+	2.Cython包含静态类型声明，可以优化python性能,静态类型声明将python动态特性转变为静态提高性能，但破坏了代码的可读性.
+	
+	cython静态变量声明:cdef
+	cython函数定义:
+		cdef是cython中的类C函数定义关键字，而def是python中的函数定义关键字。python不能直接使用cdef函数，除非是在cython源码里调用，可以定义一个def然后调用cdef.
+		cpdef融合了二者特性，在cython中使用，角色为cdef。在python中使用，为def调用cdef。
+	
+	cython -a (*.pyx|*.py|...),生成一个HTML文件。
+		白色代码代表此行cython代码直接被转换为一行c代码。
+		黄色代码代表转换为c代码需要多行，颜色越黄代表转换越多。
+		通过优化将代码尽可能的变白，则获得性能提升越高.
+-------------------
+numba:
+	它只是针对数组操作进行优化,非常适合配合NumPy使用.并非每个函数都可以用Numba优化,滥用Numba甚至会损害性能
+	Numba代码生成的主要方式是使用@jit装饰器。加上它就表示要用Numba的JIT编译器对函数进行优化
+	Numba支持CUDA编程,通过装饰器@cuda.jit就可以实现
+	
+pandas:
+	Python Data Analysis Library基于NumPy 的工具,为了解决数据分析任务而创建的
+	Pandas 纳入了大量库和一些标准的数据模型，提供了高效地操作大型数据集所需的工具
+	pandas提供了大量能使我们快速便捷地处理数据的函数和方法
+
+	Pandas中的数据结构:
+		Series：一维数组，与Numpy中的一维array类似。二者与Python基本的数据结构List也很相近，其区别是：List中的元素可以是不同的数据类型，而Array和Series中则只允许存储相同的数据类型，这样可以更有效的使用内存，提高运算效率。
+		Time- Series：以时间为索引的Series。
+		DataFrame：二维的表格型数据结构。很多功能与R中的data.frame类似。可以将DataFrame理解为Series的容器。以下的内容主要以DataFrame为主。
+		Panel ：三维的数组，可以理解为DataFrame的容器。
+
+
+
+
+

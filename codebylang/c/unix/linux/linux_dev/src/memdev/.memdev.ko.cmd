@@ -1,0 +1,1 @@
+cmd_/home/lcy/B/codecache/c/unix/linux/linux_dev/src/memdev/memdev.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/lcy/B/codecache/c/unix/linux/linux_dev/src/memdev/memdev.ko /home/lcy/B/codecache/c/unix/linux/linux_dev/src/memdev/memdev.o /home/lcy/B/codecache/c/unix/linux/linux_dev/src/memdev/memdev.mod.o

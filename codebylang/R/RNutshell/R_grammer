@@ -1,0 +1,467 @@
+rstudio-server端口号8787
+R脚本运行:
+	会话中:source(".R")
+	shell中:
+		RScript .R
+		R CMD BATCH .R
+		
+save() 保存单个变量到文件
+save.image() 保存workspace到文件
+load()      从文件加载数据到workspace
+rm()         删除workspace变量      
+ls() 列出workspace变量      
+
+
+包:
+	library(包名)加载包,不一开始加载所有包，使用时加载，节省时间空间，且避免了namespace冲突.	
+	detach(package:包名)	，卸载包
+
+	*.packages()包操作函数:
+		install.packages("包名")，从CRAN资源库安装包到默认库位置
+		remove.packages("")移除包
+
+	R CMD INSTALL *.tgz 安装互联网下载的包到默认库位置.
+
+R解释器:	
+R表达式是函数的语法糖，表达式被解析后转化为合适的函数形式。
+表达式->|解析and转化|->函数，so R所有表达式都可以查重写为函数调用
+> as.list(quote(1+2))
+[[1]]
+`+`
+[[2]]
+[1] 1
+[[3]]
+[1] 2
+> '+'(1,2)
+[1] 3
+
+if表达式函数形式
+`if`(1,2,3)
+[1] 2
+x<-1函数形式
+> '<-'(x,1)
+> x
+[1] 1
+quote()演示了解析过程，1+2,被解析为'+' 1 2,即'+'(1,2).
+R代码由表达式组成，表达式被解析为了函数指令，R执行的是函数指令序列。
+
+常量:
+	数值:1,1+2i,0xFFF
+	字符串:"hello"
+	符号:x,可以指向另一个对象的对象
+
+运算符:
+	运算符是一系列函数
+	通过函数自定义运算符:
+	`%op%`<-function(a,b){}，可以创建自己的运算符号
+	 >'q'<-function(a,b) {a+b}
+	 > 1 q 2 错误: unexpected symbol in "1 q"
+	 > `q`<-function(a,b) {a+b}
+	 > 1 q 2 错误: unexpected symbol in "1 q"
+	 >`%q%`<-function(a,b) {a+b}
+	 > 1 %q% 2
+	 [1] 3
+	可以通过名字和下标来访问list元素[[]]支持部分匹配，且可以返回多个元素。[]必须精准匹配，只能返回一个。
+    > x=list(aa=1,bb='2',cc=1.2)
+	> x
+	$aa
+	[1] 1
+	$bb
+	[1] "2"
+	$cc
+	[1] 1.2
+	> x['aa']
+	$aa
+	[1] 1
+	> x$aa
+	[1] 1
+	> x['a']
+	$<NA>
+	NULL
+	> x[['a']]
+	NULL
+	> x[['a',exact=FALSE]]
+	>[1] 1
+
+	<<-：超赋值运算符，对上层环境变量赋值，在函数内部，可以对上层变量进行访问如果使用，<-，操作则会创建一个函数的局部变量，要在函数内部修改上层变量需要使用<<-超赋值，assign("u",4,pos=.GlobalEnv)，可以为pos参数指定环境下变量赋值.	
+	
+对象:R一切都是对象,以基本对象类型为基础,R所有对象建立在这一组基本内嵌对象之上.
+	基本对象类型:
+		向量:整数，复数，字符串，逻辑等.
+		复合对象:列表等,环境等;基于列表可以构建更复杂的复合数据对象.
+		特数对象:NULL,NA等
+		R语言:符号，表达式，语言等
+		函数:一切操作是函数，函数也是对象.
+		内置对象:char,字节码,外部指针。内置对象一般用于用不到。
+		
+对象的属性:对象的特性，描述了对象代表内容即对象解释方式
+attributes可以获得对象所有属性.
+对象属性可以通过同属性名的函数获取,同属性名一致的函数获得对象属性可以直接用<-修改，来操纵对象.
+> a<-data.frame(a=c(1,2,3),b=c(1,2,3)) 
+> a
+  a b
+1 1 1
+2 2 2
+3 3 3
+> attributes(a)
+$names
+[1] "a" "b"
+$row.names
+[1] 1 2 3
+$class
+[1] "data.frame"
+> names(a)
+[1] "a" "b"
+> class(a) <- "list"
+> a
+$a
+[1] 1 2 3
+
+$b
+[1] 1 2 3
+
+attr(,"row.names")
+[1] 1 2 3
+
+
+符号:可视为变量名,R符号可以有".",data.frame是一个函数名并不表示属于data对象的frame.
+> d.a=1
+> d.a
+[1] 1
+> class(d.a)
+[1] "numeric"
+> typeof(d.a)
+[1] "double"
+> typeof(quote(d.a))
+[1] "symbol"
+> class(quote(d.a))
+[1] "name"
+
+环境:环境对象包含符号集合，符号关联对象，指向父环境指针等.R提供了操作环境对象的方法.
+> a=1
+> b=2
+> objects()
+[1] "a" "b"
+> exists('a')
+[1] TRUE
+> get('a')
+[1] 1
+> assign('c',1)
+> c
+[1] 1
+> objects()
+[1] "a" "b" "c"
+> remove('b')
+> b
+错误: 找不到对象'b'u
+> objects()
+[1] "a" "c"
+
+with，within将数据框或列表作为环境对表达式求值.(环境包含符号以及符号绑定的对象)
+> with(example.list,a+b+c)
+[1] 6
+> within(example.list,a+b+c)
+$a
+[1] 1
+$b
+[1] 2
+$c
+[1] 3
+> within(example.list,d<-a+b+c)
+$a
+[1] 1
+
+$b
+[1] 2
+
+$c
+[1] 3
+
+$d
+[1] 6
+
+提示错误:
+> message("abc") #给用户消息
+abc
+> warning("abc")#警告
+Warning message:
+abc 
+> stop("abc")#会终止程序运行给出错误信息。当给出了致命性错误时使用此函数.
+错误: abc
+
+函数:
+...接受可变参数.使用list(...)可以将可变参数转化为列表,就可以使用
+> t<-function(x,...,y)
++ {z=list(...)
++ print(z)
++ print(x)
++ print(y)
++ }
+...按顺序给...前面的有名参数赋值，其余所有参数收到...中,有名指定则名字被保存.若x,...y则y需要指定，否则y不能按顺序接收到参数，其余都被...接受了.
+> t(x="a",m=1,n=2,o=3,p=4,y="b")
+$m
+[1] 1
+$n
+[1] 2
+$o
+[1] 3
+$p
+[1] 4
+[1] "a"
+[1] "b"
+副作用:R所有函数都会返回一个值(求值),有些函数还会做一些别的事情：改变环境，画图等.
+> a<-print(1)#返回了1,副作用打印在控制台
+[1] 1
+> a
+[1] 1
+函数是一个对象有formals和body属性，代表了参数和函数体。可以修改属性来操纵已经定义的函数。通过操纵函数列表和函数体，可以彻底改变函数的行为.
+> f<-function(x,y,z){x+y+z}
+> f
+function(x,y,z){x+y+z}
+> f.formals<-formals(f)#f.formals不是f的formals属性而是f.formals变量.
+> f.formals
+$x
+$y
+$z
+> f.formals$x<-1
+> formals(f)<-f.formals
+> fs
+function (x = 1, y, z)#操纵了参数列表 
+{
+    x + y + z
+}
+> body(f) #函数体expression类型
+{
+    x + y + z
+}
+> body(f)<-expression({print(x);print(y);print(z);x*y*z})#操作改变了函数体
+> f
+function (x = NULL, y = NULL, z = NULL) 
+{
+    print(x)
+    print(y)
+    print(z)
+    x * y * z
+}
+> f(2,3,4)
+[1] 2
+[1] 3
+[1] 4
+[1] 24
+
+泛型函数:
+	一组不同的函数定义同一个通用名称，关联不同对象，处理不同对象表现不同行为.(R的函数重载机制)，R中S3对象的方法和S4类的方法是通过泛型函数机制关联到目标，方法通过S3和S4泛型函数机制绑定到S3对象和S4类上的.
+	
+S3对象:是基于泛型函数的面向对象机制.S3对象可看作是一个list并有一个名为class的属性.S3没有正式的类型定义.
+> t<-structure(1,class="foo") #返回一个S3类
+> t
+[1] 1
+attr(,"class")
+[1] "foo"
+
+> p=list(a=1,b=2) #生成列表，为对象class属性赋值.构造S3对象.
+> class(p)="foo"
+> p
+$a
+[1] 1
+$b
+[1] 2
+attr(,"class")
+[1] "foo"
+
+S3泛型函数:基于泛型的面向对象，通过S3泛型函数分派.
+> bar<-function(o) UseMethod("bar")#bar函数调用UseMethod("bar"),UseMethod依据o的类,search对应的bar.*方法,没有找到如果存在bar.default则调用，否则报错.
+> bar.default<-function(o) "default"     
+> bar.foo<-function(o) "foo"               
+> bar(t)      #调用了bar.foo
+[1] "foo"
+> bar(123)    #调用了bar.default
+[1] "default"
+> bar(p)
+[1] "foo"
+> bar<-function(o=123) UseMethod("bar",o)#指定bar默认对象
+> bar() #默认使用了bar(123)
+[1] "default"
+> bar<-function(o=t) UseMethod("bar",o)
+> bar()#默认使用了bar(t)
+[1] "foo"
+S3面向对象机制，是一系列命名规则构造的，generic.class命名方式决定了其行为.分派过程是一种按照命名规则搜索对应函数的过程.
+查找隐藏S3方法,可以得到隐藏在泛型方法后面的普通方法即信息
+> getAnywhere(bar.foo)
+>  getAnywhere(bar.foo)
+A single object matching ‘bar.foo’ was found
+It was found in the following places
+  .GlobalEnv
+  registered S3 method for bar
+with value
+function(o) "foo"
+> f=getS3method(f="bar",class="foo")
+> f
+function(o) "foo"
+> f(1)
+[1] "foo"
+构建一个S4类foo,new(foo),S3泛型函数bar调用了bar.foo，S3泛型函数只是基于命名规则的查找，任何class属性为"foo"的对象都会由UseMethod查找到bar.foo.
+> setClass("foo",representation = (data="numeric"))
+> l=new("foo")
+> l
+An object of class "foo"
+numeric(0)
+> class(l)
+[1] "foo"
+attr(,"package")
+[1] ".GlobalEnv"
+> bar(l) #bar.foo
+[1] "foo"
+
+S4泛型函数:S4使用S4泛型函数机制分派方法，S4泛型不是基于命名固定规则查找。而是通过注册将某个对象及其对应处理的方法关联起来.
+		将普通函数注册为泛型函数，原普通函数可以被重载。原普通函数是泛型函数的基本框架，当处理对象的类别没有重载的方法，则使用的是原普通函数，有重载则调用重载函数.
+		
+> series<-function(o){"series"} #定义一个普通函数
+> setGeneric("series") #注册为泛型函数
+> series
+standardGeneric for "series" defined from package ".GlobalEnv"
+function (o) 
+standardGeneric("series")
+<environment: 0x4fc9388>
+Methods may be defined for arguments: o
+Use  showMethods("series")  for currently available ones.
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="ANY"
+> series()
+"series"
+> series(123)
+[1] "series"
+> series(p) #p is S3对象 class(p) is foo
+[1] "series"
+#对象没有指定函数，默认使用了series自身，并将类型信息写在了广义函数中
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="ANY"
+o="foo"
+    (inherited from: o="ANY")
+o="missing"
+    (inherited from: o="ANY")
+o="numeric"
+    (inherited from: o="ANY")
+    
+#设置了foof,food类型，及其自定义的关联函数.自己设置的没有(inherited from: o="ANY")
+> setMethod(series,signature = c("foof"),definition = function(o){"foof"})
+> setMethod(series,signature = c("food"),definition = function(o){"food"})
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="ANY"
+o="food"
+o="foof"
+#定义两个S3对象,设置为food类，和foof类
+> a=1
+> class(a)="food"
+> b=1
+> class(b)="foof"
+#S4泛型series依据传入对象的class属性，在自己的方法设置列表中寻找对应类别以及对应的函数对象，执行重载函数。
+#S4泛型也是基于class属性查找对应函数.
+> series(a)
+[1] "food"
+> series(b)
+[1] "foof"
+#def参数在注册广义函数时，同时定义函数原型==先定义原型+后注册泛型函数
+> setGeneric("pq",def=function(o){"pq"})
+[1] "pq"
+> pq
+standardGeneric for "pq" defined from package ".GlobalEnv"
+function (o) 
+standardGeneric("pq")
+<environment: 0x5118ac8>
+Methods may be defined for arguments: o
+Use  showMethods("pq")  for currently available ones.
+> pq()
+[1] "pq"
+
+S4对象:
+	实现了oop机制。有基本的类型，继承，封装等。S4对象从基本类new构造，有基本的类型。
+	S4对象的方法不同于C++等语言，是通过泛型函数机制，定义一个泛型函数，然后设置特定类及其特定方法。将泛型函数关联到对象。方法绑定对象，不是C++等语言的对象方法。
+	因此R中"."不是运算符，是一个普通字符,可以出现在符号(变量名)中。data.frame()表示名为"data.frame"的函数而不是data对象的frame函数.	
+	
+> setClass("l",representation(data="numeric"))
+> setClass("fp",representation(d="numeric"),contains = c("l")) #contains指定继承
+> f=new("fp") #new对象，未赋初值
+> f
+> f@d=1
+> f@data=2
+> f
+An object of class "fp"
+Slot "d":  
+[1] 1
+Slot "data": #继承自l
+[1] 2
+#设置类的initialize泛型函数，initialize相当于构造函数.
+> setMethod(initialize,signature = c("fp"),definition = function(.Object){print("hello");.Object})
+[1] "initialize"
+attr(,"package")
+[1] "methods"
+> ff=new("fp")
+[1] "hello"
+为一批类指定某个方法时，可以为这批类指定一个虚类为父类.然后为虚父类,写一个方法.(类比java接口)
+> setClass("a",representation(data="numeric"))
+> setClass("b",representation(data="numeric"))
+> setClassUnion("vb",c("a","b")) #指定a,b虚父类为vb
+> new("vb")
+Error in new("vb"):无法从虚拟类别("vb")中产生对象 #虚类无法new
+> setMethod(series,signature = c("vb"),function(o){"virtual base"}) #为vb指定方法
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="ANY"
+o="food"
+o="foof"
+o="vb"
+> a1=new("a")
+> b1=new("b")
+> series(a1)       #调用了vb的方法.
+[1] "virtual base"
+> series(b1)
+[1] "virtual base"
+> setMethod(series,signature = c("a"),function(o){"a"}) #重写a的series方法
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="a"
+o="ANY"
+o="food"
+o="foof"
+o="vb"
+> series(a1) #此时调用了a的series方法，覆盖了虚父类的方法
+[1] "a"
+> series(b1)
+[1] "virtual base"
+> showMethods(series)
+Function: series (package .GlobalEnv)
+o="a"
+o="ANY"
+o="b"
+    (inherited from: o="vb") #继承自vb
+o="food"
+o="foof"
+o="vb"
+
+R对象的属性和槽:
+	R对象的槽是创建类时自定义的成员变量.R对象的属性非自定义，R内部定义的，描述了对象代表的内容，以及R解释对象的方式。常见属性有:class,names,dim...。对象槽的名称不能与某些属性名相同，so R对象同时具有槽和属性.
+> a<-c(1,2)
+> a
+[1] 1 2
+> names(a)
+NULL
+> names(a)<-c('a','b') #为names属性赋值,使a称为命名向量
+> a
+a b 
+1 2 
+> str(a)
+ Named num [1:2] 1 2
+ - attr(*, "names")= chr [1:2] "a" "b"
+
+
+
+
+	 
+
+
+
+

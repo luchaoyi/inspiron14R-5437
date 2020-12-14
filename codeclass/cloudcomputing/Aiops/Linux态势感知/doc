@@ -1,0 +1,53 @@
+经验
+	设计时考虑系统偏响应还是偏吞吐?
+		响应 应答的快慢
+		吞吐 处理的多少 
+		
+	缓存 使数据靠近计算或计算靠近数据	         
+	实际场景读取远大于写入
+		
+command 
+	uptime 运行时间，登录用户，负载 
+	ps
+	top
+	vmstat
+	iostat
+		-tx 磁盘繁忙度
+	sar -A 1 5 报告一切5次,间隔一秒
+	sysctl 可运行时修改内核参数 
+		-a 显示all参数
+		-w 更改参数
+		-p 从配置文件加载更改
+	lsof 报告运行进程所有打开文件
+	
+/proc 
+	连接内核内部结构，导出内核信息，用户和内核通信
+	可使用cat/echo  >读写
+	
+	读
+		kcore 显示系统的物理内存，以ELF格式
+		meminfo 系统内存使用
+		cpuinfo cpu
+		interrupts 中断
+		
+		pid/ 进程信息 
+			fd,mem,maps,io,stat
+			
+	写
+		/proc/sys 内核可调参数，更改变量可直接影响系统行为
+			fs 文件系统管理  
+			kernel  内核
+			net 网络管理
+			vm 内存管理
+						
+系统日志
+	标准系统日志 /var/log/message /var/log/syslog
+	内核日志 /var/log/kernellog,dmesg		
+		
+
+性能优化 	
+	strace	跟踪系统调用和信号
+		-T /-ttt /-c  显示系统调用运行时间
+	ltrace 跟踪库函数调用
+	pstack 获得调用栈信息
+	perf/gprof 性能分析 可执行文件编译时need gcc -g

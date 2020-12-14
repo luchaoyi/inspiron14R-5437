@@ -1,0 +1,59 @@
+gcc编译器优化
+	编译器计算某些表达式，生成代码时去除计算过程生成常量
+	循环展开 循环需要分支，小循环可展开
+	公共子表达式消除
+	死代码消除
+	内联函数 	
+																															
+
+进程
+	task_struct
+		rlim_xxx 资源限制
+		->nsprosy
+		*id
+			会话,进程组，进程，线程
+			pid使用bitmap记录分配和释放
+		进程关系 树形结构		
+		
+内存分配
+	伙伴系统
+		zone
+			free_area[]
+				free_area索引代表order
+				free_area[i],代表了连续此指针指向的链表hold的内存区(此order下内存分配的单位)包含2^i页
+
+设备驱动
+	热插拔
+		内核检测到设备时，创建一个kobject对象，向用户空间发送一个热插拔消息
+		udevd监听消息在/dev/创建设备文件,/dev使用tmpfs是RAM DISK
+	
+	注册
+		设备数据库
+			每个字符设备使用struct cdev表示,每个块设备分区使用struct genhd表示
+			bdev_map,c_devmap是两个全局HASH数组，以主设备号为key,索引数组元素，数组元素结构体包含指针->cdev/genhd
+		注册过程
+			字符设备
+				分配/注册设备号范围
+				cdev_init,cdev_add
+			块设备
+				add_disk
+	模块
+		向内核添加组件，文件系统，驱动的有效方法	
+		
+		
+系统调用
+	重启系统调用
+		系统调用时，收到信号
+		system v 被中断返回-EINTR由程序员检测决定是否重启
+		bsd 	中断后，执行信号处理，完成后自动重启系统调用
+		linux默认使用system v,但信号可以设置flags=SA_RESTART来开启bsd方案	
+		
+磁盘缓存	
+	页缓存 以内存页为单位	
+	块缓存 以磁盘块为单位
+
+	
+网络
+	内核同其它计算机通信的API kernel_xxx
+	netlink 
+		基于网络的机制，允许内核内部和内核与用户层通信

@@ -1,0 +1,66 @@
+$date
+	Mon Sep  5 10:49:23 2016
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module mult4_top $end
+$var wire 8 ! p [7:0] $end
+$var reg 4 " a [3:0] $end
+$var reg 4 # b [3:0] $end
+$scope module m $end
+$var wire 4 $ a [3:0] $end
+$var wire 4 % b [3:0] $end
+$var reg 8 & bp [7:0] $end
+$var integer 32 ' i [31:0] $end
+$var reg 8 ( p [7:0] $end
+$var reg 8 ) pv [7:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+b110 )
+b110 (
+b100 '
+b110000 &
+b11 %
+b10 $
+b11 #
+b10 "
+b110 !
+$end
+#10
+b1100 (
+b1100 !
+b100 '
+b1000000 &
+b1100 )
+b100 #
+b100 %
+b11 "
+b11 $
+#20
+b1010001 (
+b1010001 !
+b100 '
+b10010000 &
+b1010001 )
+b1001 #
+b1001 %
+b1001 "
+b1001 $
+#30
+b10 (
+b10 !
+b100 '
+b100000 &
+b10 )
+b10 #
+b10 %
+b1 "
+b1 $
+#40

@@ -1,0 +1,226 @@
+sqlite对象:table,index,view,trigger
+sqlite_master表是系统内置的表，存储着数据库对象信息
+sqlite支持的存储类型:integer,text,real,blob,null
+
+内置命令：
+.table **
+.indices **
+.schema(对象) 查看对象
+.mode column
+.header on 
+.nullvalue NULL 将没有值的显示为NULL（可以设置为别的)
+.echo on 在屏幕上显示执行的sql语句
+
+导出数据
+.output ** (输出的位置)
+.dump 导出为sql脚本
+(1)sqlite ** vacuum (2)cp * *  备份为二进制（直接复制就行，复制前做一些清理操作)
+sqlite3 test.db .dump |sqlite3 test2.db 管道将生成的sql输入后面执行生成另一个数据库
+
+.output 文件**
+.mode **(csv)
+select * from * （设置好字段间分割符字段间分割格式，通过select 导出)
+
+在shell导出
+sqlite3 -csv(html,**) **.db "select * from *" > *.csv(filename) 将某个表导出为某种文件格式
+
+导入数据
+.read **.sql 从sql导入（执行sql脚本创建)
+.import **file **table 从文件导入
+.separator * 设置字段间分割符
+
+shell操作sqlite:
+sqlite3 **.db **(命令，脚本)：
+	sqlite3 **.db < **.sql (执行sql命令)
+	sqlite3 **.db ** > **  (执行命令，输出重定向到**)
+
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+
+sqlite.SQL语句：
+sql->声明式语言（告诉想做什么）;命令式语言（告诉怎么做）
+--单行注释
+/*多行
+ 注释*/
+
+DQL):
+select 选择列（投影）[distinct] 去掉重复
+from **
+where 过滤行（限制）
+	logic:AND OR NOT IN
+	string:
+	都是匹配字符串 ，匹配字符不一样
+		like  % _  (%贪婪匹配)
+		glob  * _
+	算术运算:+ - * / %
+	移位运算:>> <<
+	判断: >=  <=
+order by ** [asc/desc] 按某几列排序，默认asc升序
+limit 5
+offset 2 (从0开始数)
+
+ex:
+select * from test where id>10 and value like '%h%' and value not glob '*a*' order by value limit 3 offset 2:
+	limit offset 连用时(limit 3,2==limit 3 offset 2) offset依赖于limit，不能单独使用
+(返回3个,offset是偏移从order by 返回数据中偏移到index 2的位置然后limit 返回3个)
+select * from test where value not glob '*e*' order by value desc;
+
+函数：abs(),upper,lower();length(),count(),avg(),sum(),min(),max()...
+ex:
+select max(id),length(value) from test
+
+group by *  接受where输出-->按照某个字段，将相等的分到一组,将每个分组-->交给select子句处理
+having断言是作用在group by 上，针对group by 组进行条件过滤，不过针对的是聚合值,集合聚合信息（max,min,count...)而不是单个的
+ex: 
+select count(*) from test group by value having count(*) < 2;
+
+多表连接：将多个表数据连接，供select query
+>外键关系：表某个字段是另一个表的主键
+ex:
+select urllist.url,pagerank.score from urllist,pagerank where urllist.rowid==pagerank.urlid limit 10;
+
+>内连接：求交集
+ex:
+select * from test inner join urllist on test.id=urllist.rowid  求两个id的交集
+>交叉连接：求笛卡尔集-->（a,b)×（c,d)=(ac,ad,bc,bd)
+ex:
+select * from * cross join *;
+--select * from test,urllist;
+
+>左外连接:以左表为主，匹配右边，相等则 左表行--连接右表行 ，不相等左表依然出现，右表为null补充 左表行--null
+ex:select * from urllist left outer join test on test.id=urllist.rowid limit 20;
+>右外连接:以右为主，sqlite没有实现右外连接，可以用左外代替
+>左+右=全外连接
+
+某些连接可以用where隐式实现，但SQL建议使用连接关键字
+* cross join *
+* inner join *
+* left outer join *
+
+表可以在from中重命名 
+ex:
+select t1.id id_1,t2.id id_2 from test t1,test t2 limit 10;== select t1.id as id_1,t2.id as id_2 from test as t1,test as t2 limit 10;
+as关键字是可选的，写上更清晰点.
+
+
+嵌套select:(select...) 返回的内容做为另一个处理的对象，不同地方嵌套作用不一样，但是作用恰好要表示这里的作用
+嵌套子查询可以出现在任何地方...
+1>select子句内容返回作为in子句集合
+select * from test where id in (select rowid  from urllist);
+2>表test中本来没有count字段，将嵌套内容作为此处，并命名为count
+select id,value,(select count(*) from test group by value)count from test;
+结果:
+id          value       count     
+----------  ----------  ----------
+1           ee          1         
+2           mee         1         
+3           miny        1         
+4           mo          1         
+5           mm          1         
+6           afs         1         
+7           ssd         1         
+8           dgthyts     1         
+9           dg          1         
+10          fggfgf      1         
+11          tf          1         
+12          rgh         1         
+13          hsd         1         
+14          gr          1         
+15          fh          1         
+16          dsfsd       1  
+
+3>from 子句中子查询作为了一个表的角色，并进行了命名引用
+select * from test t inner join (select rowid from urllist) u on t.id = u.rowid);
+
+复合查询，对select返回的数据集进行集合运算
+union:(并)
+intersect:(交)
+except:（差集）
+#-------------------------#
+case 匹配变量/条件并返回变量
+case value
+	when x then value_x
+	when y then value_y
+end
+
+case 
+	when condition1 then value1
+	when condition2 then value2
+end 
+
+
+sqlite每一个表默认有rowid字段,select * 不包含rowid ,rowid 用select rowid查询
+
+DML):
+插入一行
+insert into test (id,value) values (19,'hahahah');'')
+插入多行，字段需要匹配
+insert into test select * from test;
+#-------------------------#
+update *table set *字段=值 where *(条件，选择哪个记录)
+update test set value='set' where id >16;''
+
+#-------------------------#
+delete from *(table) where *;
+delete from test where id<3;
+
+
+DDL):
+create [temp] table (字段 类型 primary key(约束...***...),...,跟随附加约束);
+ex:
+CREATE TABLE loginfo (ID integer primary key,user_name text,user_ip text,ope_date date);
+alter table ** (子句操作) （更改表）
+drop table **删除表
+
+#视图，虚拟表有select动态生成
+create view ** as select **
+#index，加速查询，代价大小增大，更新，插入变慢
+create index ** on table (column) 
+
+#触发器，特定时间发生时触发
+create [temp] trigger name* [before|after] [行为insert|delete|update|update of columns] on table
+begin
+action;
+end; 
+
+#每次insert都会执行触发器动作
+create temp trigger tt after insert on test 
+begin
+insert into test values (1000,'trigger');
+end;
+		 
+TPL):
+默认是自动提交模式
+使用begin后开始不自动提交 -->commit才提交，而提交前rollback会回滚到提交点,commit后不能在rollback
+begin 
+rollback 
+设置一个保存点，可以回滚到此处
+savepoint ** 
+rollback to **
+commit
+
+
+#-------------------------#
+sqlite锁:
+unlocked :刚开始连接
+shared   :读取时，允许多个存在，可以同时读
+reserved ：写数据时，先获得，与shared可以共存，此时可以写，修改，不过是在缓冲区，不是在磁盘,此时允许读
+pending: 向提交时必须获得排他锁，这里是过渡阶段，此时不能获得新的共享锁，不能在读了，但已经获得共享锁的依然可以读。
+exclusive：排他锁等待其它读操作完成，释放共享锁，进入排他锁进行写操作
+
+attach允许将一个数据库，附加到当前连接
+ex:
+attach database ** as **;
+附加后数据库在全局可见使用附加名.表名访问
+attach database './test.db' as db3;
+>.tables
+db2.link          db2.wordlist      db3.tv            pagerank        
+db2.linkwords     db2.wordlocation  db3.urllist       test            
+db2.pagerank      db3.link          db3.wordlist      tv              
+db2.test          db3.linkwords     db3.wordlocation  urllist         
+db2.tv            db3.pagerank      link              wordlist        
+db2.urllist       db3.test          linkwords         wordlocation  
+
+
+
+

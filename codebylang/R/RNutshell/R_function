@@ -1,0 +1,252 @@
+#R帮助系统:
+> help(seq) #get online help;? means help  
+> ?help 
+> ?"for"
+> example(seq) #给出函数example
+seq> seq(0, 1, length.out = 11)
+ [1] 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+...
+> help.search("like") #执行Google,百度风格的搜索
+> help.search("graphic")
+>??"like" # ?? means help.search
+ 
+#获取当前系统时间
+> a<-Sys.time()
+> a
+[1] "2016-11-04 19:35:47 CST"
+> typeof(a)
+[1] "double"
+> class(a)
+[1] "POSIXct" "POSIXt" 
+> as.double(Sys.time())
+[1] 1478259557
+#从1970年1月1日0点时间纪元到现在的秒数
+# 1秒=1000毫秒 1秒=1000000微秒
+#对比python取得当前时间.python精确到微秒，R精确到秒
+#time.time()
+#Out[4]: 1478259559.203327
+
+#路径与目录操作
+> getwd()
+[1] "/home/lcy"
+> setwd("~")
+> getwd()
+[1] "/home/lcy"
+> file.path("f","a","b") #生成路径,在windwos下会生成,f:/a/b
+[1] "f/a/b"
+> tempdir() #临时文件目录
+[1] "/tmp/RtmpXuPQ5b"
+> tempfile() #返回一个字符串，临时文件名,文件并不存在，使用这个文件名可以在tempdir()下创建临时文件，每次返回的文件名不重复.
+[1] "/tmp/RtmpXuPQ5b/file42f47d2e32cc"
+> tempfile()
+[1] "/tmp/RtmpXuPQ5b/file42f42201e0cb"
+file.exists
+> file.exists(tempfile())
+[1] FALSE
+> class(tempfile())
+[1] "character"
+
+
+#随机抽样
+> sample(1:10,10) #1-10中返回一个随机抽样,replace=FALSE，则是不放回抽样
+ [1]  3  1  4  7  5  8  9  6  2 10
+> sample(1:10,11,replace=T)#有放回抽样
+ [1]  5  6  3  4  6  4  4  6  1 10  1
+> set.seed(1)#设置随机种子相同，则产生伪随机序列相同
+> sample(1:10,11,replace=T)
+ [1]  3  4  6 10  3  9 10  7  7  1  3
+> set.seed(1)
+> sample(1:10,11,replace=T)
+ [1]  3  4  6 10  3  9 10  7  7  1  3
+> sample(1:10,11,replace=T)
+ [1]  2  7  4  8  5  8 10  4  8 10  3
+
+#数学函数
+> a
+[1]  1  2  3  3 40
+> cum #cum... 累积...
+cummax   cummin   cumprod  cumsum   
+> cumsum(a)
+[1]  1  3  6  9 49
+> cumprod(a)
+[1]   1   2   6  18 720
+> cummax(a)
+[1]  1  2  3  3 40
+> cummin(a)
+[1] 1 1 1 1 1
+> r<-D(expression(x^2+2*x),"x") #表达式求导,按照求导规则得到解析解
+> r
+2 * x + 2
+> eval(r,envir=list(x=1)) #表达式求值
+[1] 4
+> class(r) #r is 表达式 
+[1] "expression"
+>D(expression(x^2+2*x*y),"x") #求得偏导
+2 * x + 2 * y
+> integrate(function(x) x^2,0,1) #数值法求解定积分
+0.3333333 with absolute error < 3.7e-15
+#linear algebra
+#set function
+
+
+#输入与输出
+> a<-scan("a.txt",what="") #scan从文本读入数据，默认double类型，what来设置读入mode
+Read 6 items
+> a
+[1] "a" "b" "v" "1" "2" "3"
+> a<-scan() #不输入文件名，则从键盘读入
+1: 1
+2: 2
+3: 3
+4: 
+Read 3 items
+> a
+[1] 1 2 3
+> a<-scan(what="")
+1: 1
+2: 2
+3: 3
+4: 
+Read 3 items
+> a
+[1] "1" "2" "3"
+> readLines("a.txt") #readLines可以将文件一次性读入，每行是一个字符串,readLines还可以建立连接后按行读取.
+[1] "a" "b" "v" "1" "2" "3"
+
+> c=file("a.txt") #没有r时opened=closed,open(c)可以opend连接.连接closed时，readLines直接读取指针不移动.
+> c
+description       class        mode        text      opened    can read 
+    "a.txt"      "file"         "r"      "text"    "closed"       "yes" 
+  can write 
+      "yes" 
+> c=file("a.txt",r)
+> c
+description       class        mode        text      opened    can read 
+    "a.txt"      "file"         "r"      "text"    "opened"       "yes" 
+  can write 
+       "no" 
+> readLines(c,n=1) #从连接读入文本，每次一行
+[1] "a 1"
+> readLines(c,n=1)
+[1] "b 2 "
+> seek(c,where=0) #连接，相当于文件指针，seek重置指针
+[1] 31
+
+#字符串操作
+> grep("l+s+",c("alaalsaaaas","ls","aaaaaa")) #模式匹配
+[1] 1 2
+> nchar("abc") #char number
+[1] 3
+> nchar("abc")
+[1] 3
+> paste("aa","bb") #将字符串拼接在一起
+[1] "aa bb" 
+> paste("aa","bb",sep="|")
+[1] "aa|bb"
+> paste("aa","bb",sep=".")
+[1] "aa.bb"
+>unlist(strsplit("a.b.c", ".")) #strsplit 与 paste相反根据split切分字符串，return list
+[1] "" "" "" "" ""
+## Note that 'split' is a regexp!
+## If you really want to split on '.', use
+unlist(strsplit("a.b.c", "[.]"))
+## [1] "a" "b" "c"
+## or
+unlist(strsplit("a.b.c", ".", fixed = TRUE))
+>> sprintf("this %s %d %f %x","v",5,4,12)#生成格式化字符串
+[1] "this v 5 4.000000 c"
+> substr("afada",3,5)
+[1] "ada"
+
+#----------------数据处理---------------#
+#数据存取
+read.table 可以读取以某种指定分隔符形式存储为表格形式的文本文件中的数据，
+write.table 可以指定分隔符，以表格形式将数据存储到文本文件中。
+读取Excel数据的R包
+1.xlsx格式,xlsx包,read.xlsx
+> library("xlsx") #需要java
+> x<-read.xlsx("./10-19SI.xlsx",sheetIndex=2)
+2.xls格式,gdata包read.xls
+> library("gdata")#需要Perl
+> x<-read.xls("./10-19SI.xls",sheet=2)
+3.XLConnect包需要安装java,XLConnect比较强大，支持多种格式,还可以生成Excel文件
+> library("XLConnect") 
+> excl.file<-file.path("./10-19SI.xlsx")
+> e<- readWorksheetFromFile(excl.file,sheet=1)
+
+#数据库
+	ODBC:对数据库访问的标准接口，面向用户接口，与底层具体数据库驱动分离。
+	JDBC:对数据库访问的标准接口，用Java语言编写的类和接口组成.可以为多种关系数据库提供统一访问。JDBC,ODBC是接口标准，不同数据库需要安装不同驱动程序.
+
+RODBC包:使用ODBC访问数据库。需要安装和配置ODBC驱动.
+DBI包:使用原生数据库驱动或JDBC获取数据，对于每个数据库还需要安装相应的R包才能使用原生驱动.
+
+#DBI框架调用RSQLite包方法访问SQLite
+> library(RSQLite)
+载入需要的程辑包：DBI
+> drv<-dbDriver("SQLite")  #创建驱动              
+> con<-dbConnect(drv,dbname="/home/lcy/RT.db")#创建连接
+> class(drv)
+[1] "SQLiteDriver"
+attr(,"package")
+[1] "RSQLite"
+> class(con)
+[1] "SQLiteConnection"
+attr(,"package")
+[1] "RSQLite"   
+> dbGetInfo(con)
+$serverVersion
+[1] "3.8.6"
+$results
+[1] FALSE
+> dbGetInfo(con)
+$serverVersion
+[1] "3.8.6"
+$results
+[1] FALSE
+> dbGetInfo(con)
+$serverVersion
+[1] "3.8.6"
+
+$results
+[1] FALSE
+
+> dbListTables(con)
+[1] "Rtest"
+> dbListFields(con,"Rtest")
+[1] "f1" "f2" "f3"
+> qr<-dbGetQuery(con,"select * from Rtest") #exec SQL Query
+> class(qr)
+[1] "data.frame"
+> qr
+  f1 f2 f3
+1  1  a  b
+2  1  a  b
+3  1  a  b
+4  1  a  b
+5  1  a  b
+6  1  a  b
+7  1  a  b
+8  1  a  b
+> qr<-dbSendQuery(con,"select * from Rtest") #返回一个Result对象，用fetch获取结果。SQL Query分解为发送查询与获取结果两步
+> qr
+<SQLiteResult>
+> fetch(qr,n=3)
+  f1 f2 f3
+1  1  a  b
+2  1  a  b
+3  1  a  b
+>dbDisconnect(con) #close db connect
+>dbUploadDriver(drv)#upload db driver
+
+
+
+
+
+
+
+
+
+
+
+

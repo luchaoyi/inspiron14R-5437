@@ -1,0 +1,34 @@
+Github托管git
+
+项目的拥有者可以直接修改原仓库主master
+其它参与者没有权限，只能fork一个分支，然后更改后向拥有者提交合并申请(pull request)
+
+可以对一个项目fork,watch（关注）,点赞
+github添加ssh public key则可用私钥认证登录
+
+
+
+…or create a new repository on the command line
+echo "# codecache" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin git@github.com:luchaoyi/codecache.git
+git push -u origin master
+
+…or push an existing repository from the command line
+git remote add origin git@github.com:luchaoyi/codecache.git 为本地仓库添加一个远程仓库
+
+git push -u origin master         push到远程仓库
+git pull -u origin master         将远程仓库拉取到本地   pull=fetch+merge,fetch不会自动合并
+
+
+pull request:
+	1.github fork别人项目，会将此项目fork到自己的代码仓库(类似于百度网盘将资源移动自己的网盘)
+	2.git clone fork的项目
+	3.创建一个特性分布  
+		git checkout -b work gh-pages 创建并切换到work  
+	4.修改，编辑,git diff,add,ci
+	5.推送修改到fork远程仓库
+		git push origin work
+	

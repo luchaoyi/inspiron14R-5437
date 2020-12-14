@@ -1,0 +1,1 @@
+cmd_/home/lcy/B/codecache/c/unix/linux/linux_dev/src/hello/hello.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/lcy/B/codecache/c/unix/linux/linux_dev/src/hello/hello.ko /home/lcy/B/codecache/c/unix/linux/linux_dev/src/hello/hello.o /home/lcy/B/codecache/c/unix/linux/linux_dev/src/hello/hello.mod.o

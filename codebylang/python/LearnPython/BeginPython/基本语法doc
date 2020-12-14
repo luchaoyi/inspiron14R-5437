@@ -1,0 +1,381 @@
+<python概览|逯超毅>
+
+基本数据类型
+Python3 中有六个标准的数据类型：
+Number（数字）
+String（字符串）
+List（列表）
+Tuple（元组）
+Set（集合）
+Dictionary（字典）
+Python3 的六个标准数据类型中：
+不可变数据（3 个）：Number（数字）、String（字符串）、Tuple（元组）；
+可变数据（3 个）：List（列表）、Dictionary（字典）、Set（集合）。
+
+
+迭代器
+	有两个基本的方法：iter() (创建可遍历对象的迭代器)和 next()
+生成器
+	使用了 yield 的函数被称为生成器（generator),跟普通函数不同的是，生成器是一个返回迭代器的函数，只能用于迭代操作
+	
+
+核心模块
+	__builtin__ 包含python中所有的内建函数，python启动时自动导入
+	exceptions 提供了标准异常的层次结构.，python启动时自动导入
+	os 操作系统相关,os.path 包含了各种处理长文件名(路径名)的函数
+	stat 解释os.stat()的结果
+	
+	sys python解释器相关
+	operator 提供了标准操作符的函数形式
+	math/cmath 数学运算/复数数学运算
+	copy 包含两个函数, 用来拷贝对象,copy浅拷贝&deepcopy 深拷贝
+	atexit 注册一个或多个终止函数,函数将在解释器终止前被自动调用
+	time 提供了一些处理日期和一天内时间的函数. 它是建立在 C 运行时库的简单封装
+	types 包含了标准解释器定义的所有类型的类型对象
+	gc 提供了到内建循环垃圾收集器的接口
+	
+	
+/x
+python可以通过封装c库,cython编写，纯python编写来产生模块，而python下有海量的模块支持各种领域的操作,因此记住不要重复发明轮子
+x/
+----------------------------------------
+*基本数据类型
+In [1]: a=[1,2,3] 序列是以索引start 0开始组织的数据结构，内建序列有:列表，元组，字符串等。通用序列操作有:分片，索引，+,*等.
+In [2]: 1 in a
+Out[2]: True
+n [4]: id(a)
+Out[4]: 140334488876384 
+In [5]: a[1]=[0]
+In [6]: id(a)
+Out[6]: 140334488876384 
+
+In [12]: a=[4,1,3]
+In [13]: sorted(a) #返回副本
+Out[13]: [1, 3, 4]
+In [14]: a
+Out[14]: [4, 1, 3]
+In [15]: a.sort() #原地排序
+In [16]: a
+Out[16]: [1, 3, 4]
+
+In [17]: "%s" %1 #格式化字符串
+Out[17]: '1'
+In [19]: "%x" %123
+Out[19]: '7b'
+In [20]: "%f" %12
+Out[20]: '12.000000'
+
+In [28]: a.split() #split and join互为逆方法
+Out[28]: ['a', 'b', 'c', 'd']
+In [29]: b=a.split()
+n [34]: ",".join(b)
+Out[34]: 'a,b,c,d'Out[31]: 'a b c d'
+
+In [43]: d.get('a',"NA") #get访问字典key不存在时不不报错，返回None.或可以自己指定返回值
+Out[43]: 'NA'
+n [45]: d
+Out[45]: {1: 2, 3: 4}
+In [46]: d.items()
+Out[46]: [(1, 2), (3, 4)]
+In [47]: d.iteritems()
+Out[47]: <dictionary-itemiterator at 0x7fa21b78c158>}
+
+In [65]: d
+Out[65]: {1: 3, 3: 5}
+In [67]: a
+Out[67]: {1: 2, 6: 7}
+In [68]: d.update(a) #添加a字典到d，同键值覆盖.
+In [69]: d
+Out[69]: {1: 2, 3: 5, 6: 7}
+
+*基本语句
+In [70]: x=y=z=1
+
+In [81]: y=x
+In [82]: x is y
+Out[82]: True
+In [83]: del(x) #del删除变量名字，但并没有删除引用的对象。当对象引用计数为0时会被当作垃圾自动收集,但不一定会马上收集
+In [84]: x
+NameError: name 'x' is not defined
+In [85]: y
+Out[85]: [1, 2, 3]
+
+In [92]: scope={'x':1,'y':2} #用字典作为exec和eval的命名空间
+In [93]: exec "x+y" in scope
+In [94]: exec "z=x+y" in scope
+In [95]: z
+Out[95]: 1
+In [101]: eval("x+y",scope) #eval求值语句并返回值，因此eval不能执行print
+Out[101]: 3
+
+*函数
+def f (*p): #*p **p为收集参数，实现可变个数参数
+    print p
+f(1,2,3,4)
+(1, 2, 3, 4)
+def f (**p):
+    print p
+f(x=1,y=2,z=3,d=4)
+{'y': 2, 'x': 1, 'z': 3, 'd': 4}
+
+*对象
+私有方法:python没有直接支持私有方法，而是通过名称变化术.
+__m():会被翻译为, _类名__m()，因此依然可以通过对象._类名__m()访问到.因此python没有访问控制机制，而是使用变换名字进行了隐藏.
+class C():
+	__init__(self):
+		...
+
+特殊方法:被特殊支持的以特殊形式被调用的方法
+__init__:构造函数
+__call__:将对象当作函数一样调用时调用
+__str__:对象字符串化时被调用
+...
+
+*异常
+raise 引发异常,內建异常类在exceptions模块
+In [143]: import exceptions
+In [144]: dir(exceptions)
+Out[144]:['ArithmeticError','AssertionError','AttributeError','BaseException',...]
+
+class exp(Exception):pass #自定义异常类需要直接 or 间接继承Exception
+try : except 异常类 as e : else : finally:
+
+*包
+./pk/__init__.py  #import pk时__init__py被导入
+./pk/a.py #import pk.a 
+./pk/b.py #import pk.b
+
+In [147]: re.__file__   #模块位置
+Out[147]: '/usr/lib/python2.7/re.pyc'
+In [146]: re.__doc__  #模块文档
+...
+In [148]: re.__all__ #指示了from re import *时被导入的名字
+Out[148]: 
+['match',
+ 'search',
+ 'sub',
+ ...]
+
+
+*pdb使用
+# python -m pdb debugtest.py 
+ l #list source code
+ s #step in
+ n #next step out
+ p a #print a value
+ r #run until function return value
+ w #print stack trace
+ j 5 #jump line 5
+ c#continue run until face breakpoint
+ b 5 #break line 5
+ tbreak  5# break line 5 first face clear
+ cl #clear all breakpoint
+#breakpoints op
+ commands 1 # input face breakpoint 1 execute
+ condition 1 #put a condition on breakpoint
+ disable 1
+ enable  1
+ ignore 1
+
+#----------------------------
+<python入门>
+1.
+#python2的str对象对Unicode字符集没有完全支持
+#为解决此问题引入了新类型unicode
+a="121"
+type(a)
+Out[3]: str
+a=u"1213"
+a
+Out[5]: u'1213'
+type(a)
+Out[6]: unicode
+
+#python3所有字符串使用了unicode编码,不需要加u前缀
+
+2.
+xrange()对象创建一个范围，支持index索引但不支持切片
+3.
+python系统和内置函数预留了接口来控制对象(以__开头和结尾),用户实现这些函数与python进行交换来控制对象的行为,将内置的行为映射到这些接口,可以让用户定义的对象像内置对象操作简单(如,使用这个机制实现了操作符重载，函数对象等)
+将语句绑定到函数，通过修改函数可使同样的操作符/语句表达不同的意思
+
+4.使用yield定义生成器对象
+	yield语句创建的函数并不立即执行，处于阻塞状态,使用next运行到yield位置阻塞，再次执行next恢复运行，到下一次遇到yield阻塞
+def countdown(n):
+    print "%d" %n
+    while n>0:
+        yield n
+        n-=1
+    return      
+c=countdown(6)
+c
+Out[3]: <generator object countdown at 0x7f744c1259b0>
+c.next()
+6
+Out[4]: 6
+c.next()
+Out[7]: 5
+c.next()
+Out[8]: 4
+	
+yield赋值给一个值,使用send发送值
+def receiver():
+    print ("Ready to recv")
+    while True:
+        n=yield
+        n+1
+        print n
+        
+
+r=receiver()
+r
+Out[15]: <generator object receiver at 0x7f744c0f2a00>
+r.next()
+Ready to recv
+r.send(1)
+1
+r.send(2)
+2
+r.send(3)
+3
+r.send(5)
+5
+
+多个协程可以通过send通信,协程可以实现某种并发,将消息发送到各个协程驱动协程运行
+
+生成器对象可以用在迭代中，每次生成值，实现了惰性求值.
+a=[i for i in range(10)] 列表推导式
+a
+Out[42]: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+a=(i for i in range(10)) 生成器推导式
+a
+Out[44]: <generator object <genexpr> at 0x7f744c0f2be0>
+a.next()
+Out[45]: 0
+
+
+5.串文本处理
+	Unicode字符串有多种编码规范(对unicode编码的编码),	内置codecs模块用于处理字符串编解码,Unicode文件可能包含特殊的BOM,BOM作为文件第一个字符写入，用于指示编码和字节排列顺序.
+	struct模块用于python与二进制数据之间转换数据，可以将python值打包到字节字符串或缓冲区对象buffer
+			
+	
+6.多进程
+	通信
+		进程通过Queue和Pipe通信，传递消息
+	共享数据
+		Value 值
+		RawValue
+		Array 数组
+		RawArray
+		
+		Value和Array会自动使用锁保护值的访问
+		Raw*不带锁
+		
+multiprocessing.Value('i',1,lock=True)
+Out[11]: <Synchronized wrapper for c_int(1)>
+multiprocessing.RawValue('i',1)
+Out[14]: c_int(1)
+a=multiprocessing.Array('i',10)
+a[1]=1
+a
+Out[18]: <SynchronizedArray wrapper for <multiprocessing.sharedctypes.c_int_Array_10 object at 0x7f764c3ba4d0>>
+a[0]=1
+a[9]=1
+a[:] 支持切片
+Out[27]: [1, 1, 0, 0, 0, 0, 0, 0, 0, 1]
+
+	托管对象	
+		进程不支持直接共享python对象,python multiprocessing模块提供了管理器,管理器is进程子进程，以服务器形式运行.
+		共享对象运行在管理器的控制下，其它进程使用代理访问共享对象,代理是管理器的client
+		被托管的对象由服务器创建，返回给客户端的只是访问代理
+		
+	此方法返回一个SyncManager对象，使用此对象提供的方法可创建共享对象(有list,Queue,dict等)，并返回访问代理
+	m=multiprocessing.Manager()
+	m
+	Out[35]: <multiprocessing.managers.SyncManager at 0x7f76483ab750>
+	对于自定义类型共享，需要继承BaseManager创建自己的管理器，并注册类到服务器,并可以自定义代理实现更多访问控制
+
+7.类
+class A:
+    def __add__(self,value):
+        return 1
+a=A()
+a
+Out[11]: <__main__.A instance at 0x7fd6788d15f0>
+a+1
+Out[12]: 1
+
+#对象中定义的方法和属性都使用一个字典存储,name:值
+A.__dict__
+Out[17]: 
+{'__add__': <function __main__.__add__>,
+ '__doc__': None,
+ '__module__': '__main__'}
+
+
+#在外部操作__dict__为对象A添加属性x
+A.__dict__['x']=1
+A
+Out[24]: __main__.A
+A.x
+Out[25]: 1 
+
+#类与对象都是值(都是对象)，类的特殊性在于它可以生成其它对象,类与对象都是对字典的浅层包装
+a=A()
+a.x
+Out[27]: 1
+A
+Out[28]: __main__.A
+A
+Out[29]: __main__.A
+type(A)
+Out[30]: classobj
+a生成以后也可以任意添加属性
+a.asdf=1
+
+#__slots__限制类的属性，不能额外添加，使用__slots__的类的实例，不在使用字典存储数据，而是使用基于数组的更紧凑的结构,若要产生大量对象，可以优化内存
+
+#python2是否继承object是有区别的，最好继承它，否则程序行为可能不同
+class A:pass
+type(A)
+Out[20]: classobj
+?A
+Type:        classobj
+String form: __main__.A
+Docstring:   <no docstring>
+
+class A(object):pass
+type(A)
+Out[23]: type
+?A
+Type:        type
+String form: <class '__main__.A'>
+Docstring:   <no docstring>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

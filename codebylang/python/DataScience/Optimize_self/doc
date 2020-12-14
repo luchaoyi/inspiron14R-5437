@@ -1,0 +1,180 @@
+ Python的不定参数
+以一个＊开始的参数，代表一个任意长的元组：
+>>> def mul(*arg):
+...     print arg
+... 
+>>> mul(1,2,3,4,5,6,7,'hello','panfei')
+(1, 2, 3, 4, 5, 6, 7, 'hello', 'panfei') ＃一个元组
+>>>＊＊＊＊＊＊＊＊＊＊
+一个以＊＊开始的参数，代表一个字典：
+>>> def mul2(**arg):
+...     print arg
+... 
+>>> mul2(a=11,b=444,c=888)
+{'a': 11, 'c': 888, 'b': 444} 一个字典
+>>>
+两种参数前者可以直接写实参，后者写成名＝值的形式！
+
+#列表表达式
+li = [1,2,3,4,5,6,7,8,9]
+print [x**2 for x in li]
+
+print [x**2 for x in li if x>5]
+
+print dict([(x,x*10) for x in li])
+
+
+print  [ (x, y) for x in range(10) if x % 2 if x > 3 for y in range(10) if y > 7 if y != 8 ]
+
+vec=[2,4,6]
+vec2=[4,3,-9]
+sq = [vec[i]+vec2[i] for i in range(len(vec))]
+print sq
+
+print [x*y for x in [1,2,3] for y in  [1,2,3]]
+
+testList = [1,2,3,4]
+def mul2(x):
+    return x*2
+print [mul2(i) for i in testList]
+
+
+#a.A1矩阵按行拉直操作
+a
+Out[16]: 
+matrix([[1, 2, 3],
+        [4, 5, 6]])
+
+a.shape
+Out[17]: (2, 3)
+
+a.A
+Out[18]: 
+array([[1, 2, 3],
+       [4, 5, 6]])
+
+a.A1
+Out[19]: array([1, 2, 3, 4, 5, 6])
+a[:,1]
+Out[5]: 
+matrix([[2],
+        [5]])
+
+In [8]: a[:,1].A1
+Out[8]: array([2, 5])
+
+#数组过滤
+a
+Out[51]: array([5, 5, 3])
+
+a[array([True,False,True])]
+Out[52]: array([5, 3])
+
+#[]内必须是bool数组,对应位置被选中
+a[array([True,False,True])]=7
+
+a
+Out[54]: array([7, 5, 7])
+
+>>> a
+array([[ 1.],
+       [ 1.],
+       [ 1.],
+       [ 1.],
+       [ 1.]])
+       
+#数组过滤
+>>> a[array([[False],[True],[True],[False],[True]])]=2
+>>> a
+array([[ 1.],
+       [ 2.],
+       [ 2.],
+       [ 1.],
+       [ 2.]])
+>>> 
+
+#reshape和resize
+#reshape返回新数组不改变原数组
+#resize直接改变原数组
+#reshape.resize都不能改变数组总体元素个数的变形
+a=ones([4,4])
+a
+Out[4]: 
+array([[ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.]])
+
+a.resize([5,5])
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+<ipython-input-5-ae49f4c44f57> in <module>()
+----> 1 a.resize([5,5])
+ValueError: cannot resize an array that references or is referenced
+by another array in this way.  Use the resize function
+a.resize([2,8])
+a
+Out[7]: 
+array([[ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.]])
+
+a
+Out[8]: 
+array([[ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.]])
+
+
+a.reshape([4,4])
+Out[11]: 
+array([[ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.]])
+
+a
+Out[12]: 
+array([[ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.]])
+
+#numpy.append是将原数组直接拉直，将元素添加到末尾，需要自己resize or reshape到想要的shape
+b
+Out[28]: 
+array([[ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  2.,  3.,  4.]])
+append(b,[9,4,3,2])
+Out[29]: 
+array([ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
+        1.,  1.,  1.,  1.,  2.,  3.,  4.,  9.,  4.,  3.,  2.])
+c=append(b,[9,4,3,2])
+c
+Out[31]: 
+array([ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
+        1.,  1.,  1.,  1.,  2.,  3.,  4.,  9.,  4.,  3.,  2.])
+c.resize([6,4])
+c
+Out[33]: 
+array([[ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  1.,  1.,  1.],
+       [ 1.,  2.,  3.,  4.],
+       [ 9.,  4.,  3.,  2.]])
+
+#int
+#float可以将字符串转换过来
+a='72.3'
+float(a)
+Out[25]: 72.3
+
+float(a)
+Out[26]: 72.3
+
+int('72')
+Out[28]: 72
+
+str(72.3)
+Out[29]: '72.3'
+#pickle.dump可以将python对象保存到文件,pickle.load文件中对象加载进来

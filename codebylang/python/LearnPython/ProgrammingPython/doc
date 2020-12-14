@@ -1,0 +1,87 @@
+sys 包含了解释器相关模块，可以从其获得解释器的各种信息
+	sys.path:是一个列表，包含了解释器模块的搜素路径，可以更改(insert,pop,remove,del,extend,append等)
+	sys.modules:已加载模块
+os 操作系统相关
+	shell变量
+	派生进程
+	运行程序
+	文件/目录/路径名处理
+	
+shell环境变量
+In [2]: os.environ #以字典形式存储了shell环境变量
+Out[2]: {'GOPATH': '/home/lcy/tmp/golang/lib:/home/lcy/tmp/golang/workspace',...}
+
+io.StringIO :将文件对象接口，映射到字符串 
+io.ByteIO:将文件对象接口，映射到字节缓存区
+
+buff=StringIO()
+buff.getvalue()
+Out[12]: u''
+buff.write(u'adad')
+Out[13]: 4L
+buff
+Out[14]: <_io.StringIO at 0x7f0428649e50>
+buff.getvalue()
+Out[15]: u'adad'
+
+进程分支(fork,exec)
+		开始独立的进程创建分支程序(fork),fork创建程序在内存中的副本,然后父，子进程并行运行.
+		在fork的位置，父子分支，子进程复制了一份父进程,此时父进程fork返回子进程pid,子进程返回0.
+		此时父子进程并行，若子进程不覆盖父进程则，子进程与父进程独立地执行同样的操作.
+		若父子进程执行不同操作，则fork子进程后会使用exec覆盖子进程，执行子进程自己的操作.
+
+
+Python的数据持久化操作
+
+1.普通文件
+2.DBM文件,DBM创建一个持久化字典字符串的键值对存储在文件里,dbm的键和值必须是字符串类型.
+	import anydbm
+	f=anydbm.open?
+	Note: 'r' and 'w' fail if the database doesn't exist; 'c' creates it
+	only if it doesn't exist; and 'n' always creates a new database.
+	f=anydbm.open('dbm','c')
+	f
+	Out[4]: {}
+	type(f)
+	Out[5]: bsddb._DBWithCursor
+	f['A']="AAAA" #Data values must be of type string or None
+	f['B']="BBBB"
+	f.keys
+	Out[8]: <bound method _DBWithCursor.keys of {'A': 'AAAA', 'B': 'BBBB'}>
+	f
+	Out[9]: {'A': 'AAAA', 'B': 'BBBB'}
+	f['A']
+	Out[10]: 'AAAA'
+	f.close()
+	
+3.Pickled对象存储，Pickled把对象序列化到文件，可以存储复杂类型,存储到文件的对象是pickle编码的字符序列
+		#序列化
+		import pickle
+		pickle_db=open('pickle_db','w')
+		pickle.dump([1,2,3],pickle_db)
+		pickle.dump({'A':123,'B':234},pickle_db)
+		pickle_db.close()
+		#反序列化,解析pickle文件
+		pickle_db=open('pickle_db','r')
+		pickle.load(pickle_db)
+		Out[32]: [1, 2, 3]
+		pickle.load(pickle_db)
+		Out[33]: {'A': 123, 'B': 234}
+4.shelve对象存储, shelve类似DBM和Pickled方式的结合，以键值对的形式把对象序列化到文件
+5.对象数据库存储
+6.关系数据库存储,使用SQL接口与database交互
+7.ORM
+	对象-关系映射（OBJECT/RELATIONALMAPPING，简称ORM），是随着面向对象的软件开发方法发展而产生的。用来把对象模型表示的对象映射到基于S Q L 的关系模型数据库结构中去。这样，我们在具体的操作实体对象的时候，就不需要再去和复杂的SQL语句打交道，只需简单的操作实体对象的属性和方法。ORM技术是在对象和关系之间提供了一条桥梁，前台的对象型数据和数据库中的关系型的数据通过这个桥梁来相互转化
+
+
+
+
+
+
+
+
+
+
+	
+	
+	

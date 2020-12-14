@@ -1,0 +1,46 @@
+Namespace帮助进程隔离出自己的单独空间
+Cgroups提供对一组进程及子进程的资源限制，控制，统计的能力。资源包括CPU，内存，存储，网络等.
+	cgroup包含一组进程
+	subsystem是一组资源控制模块，subsystem关联到cgroup对这个cgroup中的进程做相应的限制和控制
+	hierarchy是cgroup树，通过树结构实现继承
+		sudo mount -t cgroup -o none,name=cgroup-test cgroup-test ./cgroup-test/
+		./cgroup-test/下的tasks文件标识该cgroup下的PID,将PID写入tasks文件，相当于将进程加入cgroup
+		cgroup以及子目录构成一个层次结构，每个cgroup下的文件包含一组进程(PID)
+		subsystem与cgroup关联是通过在cgroup目录下放置一系列文件的方式。系统默认为每个subsystem关联一个hierarchy。		
+		subsystem -> 默认cgroup目录 ->目录下放置了保存cgroup进程PID信息以及资源控制信息。
+		subsystem程序,cgroup文件系统是数据。每个subsystem有个默认的目录，目录下描述了控制哪些进程，以及如何控制的信息。	
+	docker为每一个容器在系统默认目录下创建cgroup来实现资源控制		
+
+
+UnionFS把其它文件系统联合到一个联合挂载点
+ 	sudo mount -t aufs -o dirs=./container-layer/:./iamger-layer4:./iamger-layer3:./iamger-layer2:./iamger-layer1 none ./mnt/
+ 	aufs将四个目录下的所有文件联合挂载到一个目录下
+ 	cat /sys/fs/aufs/si_e963a8e4eadccd7a/* 查看aufs文件读写权限
+ 	aufs是分层文件系统，使用COW技术.
+ 	
+docker run 
+	run 
+		父进程接收command
+		调用clone函数创建子进程并创造隔离的进程环境，
+		启动子进程，通过pipe向子进程发送参数
+		---------------------------------
+		子进程在容器中执行command	
+		
+		
+
+		
+				
+		
+	
+	
+	
+	
+
+
+		
+		
+		 	
+ 	
+ 	
+ 	
+ 	

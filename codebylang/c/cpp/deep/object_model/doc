@@ -1,0 +1,219 @@
+C++额外负担
+	virtual function 
+	virtual base class 
+	多重继承下向第二base class转换
+	劣质的代码造成不必要的临时对象的产生
+	exception
+	
+OB 基于类的 不使用virtual机制，无多态，OB范式的C++效率不低于C
+OO 面向对象的 支持多态
+
+reinterpret_cast 操作指针和引用和算术类型
+static_cast c范畴类型强制转换，c++继承层次安全转换
+dynamic_cast c++继承层次rtti转换,只能操作指针和引用
+const_cast 只能操作指针和引用,去除volatile和const属性
+
+class::member/function ptr
+	class data member ptr is offset(this ptr)
+	class virtual function ptr is offset(vptr)+1
+	class nonvirtual function ptr is function ptr -> function addr 
+		
+slot和table模型比较灵活，耦合性较小，但是间接性多，影响性能
+c++ class 
+	member 
+		static 在class之外
+		nonstatic 在class之内
+	function 
+		static 在class之外
+		nonstatic 在class之外
+		virtual class内vptr ->class外vtbl
+			vptr[0]为第一个虚函数的地址
+			vptr[-1]是class的type_info *ptr
+				typeid()函数返回type_info对象,对于没有vptr的class，typeid返回的type_info的为静态类型，编译期间可确定
+				RTTI的dynamic_cast，运行时需要vtbl支持，因此没有virtual函数的class编译器禁止dynamic_cast#编译错误	
+	编译到在calss内的部分有任何修改，则代码需要重新编译
+	base class subobject 
+		base class是derived class的一部分
+	virtual base class 
+		bptr/offset -> base class
+继承		
+	具体继承 若无vptr，效率不低于C struct
+	虚拟继承 公有部分指针设置
+	多重具体继承 第二个即以后base类型的指针设置
+	多重虚拟继承 第二个即以后base类型的指针设置，公有部分指针设置
+	
+构造语义
+	->#类的继承和复合以及virtual机制会产生额外的开销
+	编译器需要时合成()构造函数或扩展已经定义的构造函数
+		组合或继承，编译器需要按照声明顺序调用被包含的class的构造函数
+		virtual
+			编译期间生成vtbl和vptr
+			合成()构造，正确初始化vptr
+		virtual继承 X:virtual A,X: virtual B,C:A,B
+			需要插入offset或合成指针指定X的位置
+	编译器需要时(不能bitwise copy)合成copy构造
+		若一个class的对象可以bitwise copy，则编译器不会合成memerwise的cpoy构造函数
+		递归memberwise copy
+			组合或继承的类存在copy构造函数，不论是定义或编译器合成
+				编译器需要安插包含的类或父类的copy构造函数在合成的copy构造函数
+			virtual和virtual继承		
+				合成构造函数需要将vptr/offset适当的初始化
+		!若bitwise copy可以保证正确的初始化？是否应该压抑copy 构造函数的调用,优化为使用memcpy
+		NRV 被调用函数定义局部对象 -> 临时对象 -> 目标对象 |=>| 直接构造目标对象空间传引用给被调用函数
+	使用初始化列表按照声明顺序初始化而不是使用赋值
+
+member 
+	讨论p.x和p->x的存取
+	#->编译期间可以决议的都没有额外开销，不能决议只能插入额外代码在运行时决议，则额外的时空开销产生了
+	#->c++性能下降的主要原因，额外的间接性主要由virtual和virtual继承引起
+	emty class {},编译器会插入1 char
+	虚拟继承 
+		virtual base class的class会插入一个offset/ptr来指定virtual base class的位置，因此也引入了对子类中virtual base class对应区域存取的间接性
+	具体继承不会增加空间和额外的存取开销	
+	空子类继承emty virtual base class则不会额外插入1 char
+	member 
+		static 在class之外,放置在global data segment
+		nonstatic 在class之内
+			c++标准没有强制定义继承的nonstatic的顺序
+			不同访问权限区域定义顺序不一定
+	指向member的指针总是被+1,用以区别指向class的指针
+	!选择某些函数inline是class设计的重要课题	
+	vptr放置在哪里更好?
+		尾部 可保留对C struct的对象布局
+		当前多头部
+	单一具体继承base和derived是自然多态的，起始地址相同，地址转化没有任何额外操作
+	base没有vptr而derived有，则子类转化父类则编译器需要介入，地址+一个vptr的offset
+	没有vptr的多重继承,第一个base的地址转化自然多态的，而第一个后的其它base的地址转化需要跳过前面base类的offset，地址转化有开销大，但member是固定的可以直接存取的
+	virtual菱形继承中共享部分的位置是不确定的，每次派生位置都会发生变换(在最末尾)，因此引入ptr或offset指定共享部分，增加了一次间接性，因此共享部分存取有额外开销
+	A->{B,C},->D, A* p,p指向的对象型别是B/C/D，p->x访问A区域的member则，编译时类型不确定下offset/地址是不能确定的，因此需要运行时借助对象内的offset或ptr来间接访问, D/B/C p,p.x,p的型别是确定的因此，编译时可以确定A部分的位置
+	
+function
+	讨论p.f()和p->f()调用
+	function 
+		static 在class之外
+			理论上nonstatic方法只有对对象的data member存取时才需要传递this指针
+			static属于对象共有没有this指针，差不多等同于nonmember普通函数			 
+		nonstatic 在class之外
+			nonstatic 方法和nonmember普通函数效率相同
+			编译器将nonstatic member方法转化为了一个普通函数,a.fa() ->转化为fa(A& a),内部传递一个this指针
+		virtual class内vptr ->class外vtbl
+			虚函数p->f0() 转化为 *vptr[0]()
+			A a, a.f0()明确调用，压制了virtual机制，和普通函数调用一样
+			此调用下若f0是inline virtual 则f0可以被inline在调用位置展开,而*vptr[0]()调用的位置不可以展开inline被抑制
+			含有vptr->vtbl打破了结构与c的链接兼容性
+			virtual void f() = 0,等于0的虚函数位置被填入pure_virtual_called
+			多重继承
+				A:B,C,D,...
+				virtual机制的复杂度主要在第二个及后的base classes,在执行期需要调整this指针
+				C * p = new A,则p = p + sizeof(B)，new A得到的首地址要跳过第一个base class B的区域，才正确指向C的区域
+				有几个父类就有几个vtbl,第一个vtbl是主要表格由父子共享，其它表格仅包含父类自身的不与子类共享	
+			!不要在vitrual base class中声明nonstatic数据成员(仅将虚基类作为接口)，复杂度太高
+		inline 
+			编译器判断不能或不值得inline时将函数转化为static函数
+			小心使用inline 
+
+构造，析构，拷贝
+	不要把virtual destructor 声明为pure( 即= 0;)
+	谨慎使用inline ,virtual
+	operator= 自赋值检查的必要性
+	cpoy 
+		默认/禁止/显示提供
+		默认下bitwise下compiler不合成拷贝构造函数，bitwise不够用则合成memberwise 
+		建议不要在virtual base class中声明数据，并禁止它的拷贝
+	析构 
+		class组合或继承其它class带有析构时，析构被合成，因为按继承层次反向调用析构函数是编译器的责任，编译器需要则合成
+	将对象定义延迟到使用时，构造延迟
+	编译器对于virtual base class的逻辑和普通继承操作是不同的，一般现代大多编译器会产生两个不同的函数来分别处理不同情况
+	对象数组
+		Base * p = new Sub[10];delete[] p;
+		!此种情况下delete[],Base::~Base被调用10次，这不是我们期望的,因此我们应该避免使用Base ptr指向Sub类型的数组
+		!注意避免临时对象的产生		
+
+template
+	member
+		当定义对象时(申请内存)，需要直到对象的内存布局，此时模板才具现化
+	function
+		当成员函数被用到的时候才局限化,参数绑定到模板并施以名称粉碎，生产出一份普通函数
+	大多编译器对template声明在具现前只能施加有限的检查，如不能施加类型检查，没有类型检查，模板范围变成了Duck Type
+		具现虚函数则需要具现虚表，为保证虚表的完整性，一个虚函数具现会导致所有虚函数被具现
+		
+exception 
+	追踪程序堆栈中函数的当前作用域，查询exception object，知道其类型(RTTI)，管理抛出的object,构造，析构
+	编译器需要建立eh机制的数据结构并配合一个eh lib
+		编译时建立，造成代码膨胀
+		运行时建立，效率有影响
+	!C++支持EH机制付出的代价最大
+		函数建立表格划分不同区域
+		throw 和 catch 产生类型描述符，利用RTTI机制类型匹配
+		栈的popup和对象的销毁
+
+rtti机制
+	提供安全的downcast操作(父类ptr转子类ptr)，只对表现多态的类型有效,type_info信息被记录在vtbl
+	非多态的class不支持rtti，也不需要承担rtti带来的额外开销
+	dynamic_cast(安全的向下转型)
+		ptr 不安全返回0
+		reference 不安全抛出bad_cast exception
+		#在编译器层面ref和ptr不同，ptr = 0,表示不指向任何位置，但是ref不能不引用任何东西，ref必须引用一个对象
+		#ref生成汇编码和ptr操作一致，但对于c++语法定义来说ref不是ptr
+	type_info和继承子type_info的系列类提供了类型描述信息，为EH机制的RTTI提供了支持,对于非多态的type_info是编译期间静态取得，因此也支持typeid()操作,可以取得type_info信息
+
+--------------------------
+	深入对象模型
+		#合成原则 编译器需要时
+		vptr和vtbl
+			编译器负责产生代码对vptr的set（初始化）和reset（父子初始化），vptr->vtbl
+			vtbl包含虚函数和type_info*
+			vtbl在编译期产生，放置在数据段,vtbl可认为是class的static的成员
+			vptr在运行时设置(对象构造时)
+			#关于动态链接，模块内部的数据和代码都采用相对(pc)地址调用，因此猜测vtbl存储的地址是相对地址
+		继承
+			直接添加class到子类
+			virtual 继承 间接(指针指向base class)添加一个base class
+		父子 
+			虚表是共享的所以虚函数共享
+			不同指针操作数据范围不同，因此指向子类的父指针操作子类成员安全但不合法
+		OO 基于虚函数的多态机制
+		OB 不使用virtual机制，类型分派都在编译期
+		析构合成
+			base class / member class有析构函数时，编译器才合成析构以调用它们的析构，否则不合成析构(无必要，直接释放内存)
+			合成的析构有重置vptr的责任 #vptr 构造-析构:父子子父
+	default 合成
+		包含和继承class会导致编译器扩张构造和析构函数来调用base class / member class的无参构造和析构	
+		virtual机制要求编译器合成，正确set/resset vptr以及生成vtbl
+		virtual base calss 需要生成一个ptr/offset间接指明它的位置
+		copy构造函数合成
+			不合成时 直接以bitwise copy
+			不能bitwise copy时 默认合成以memberwise copy
+				继承和成员class由声明 copy construct
+				virtual，vptr set
+			#virtual阻止了很多优化，并引入了间接性
+			Base base = sub; 发生切割，base的vptr需要指向Base，而不是Sub(因此不能bitwise),sub的虚函数可能引用sub member,而b 已经切割
+		NRV优化 #提供拷贝构造函数并不是触发NRV优化的条件的，Lippman的书不完全反映现代c++编译器
+	empty class 
+		1b/vptr / vbtr(virtual base class )/ align bytes
+		最初vptr在尾部（保持和c的兼容性），后来OO多态常用范式vptr在头部 #带类的C->oo C
+		类的布局在编译期是确定的因此  成员的存取是没有额外成本的(只有函数多态，没有成员多态)
+		virtual base 会在子对象内部添加一个vptr/offset以指向virtual base member 区域，因此virtual base是间接存取的
+	function
+		非虚拟函数的调用是确定的，无论是否使用指针和普通函数有相同效率
+		虚拟函数不一定间接调用，当没有动多态的时候，调用对象编译器明确，还是直接调用和普通函数有相同效率
+		static member function 没有this指针，因此和非成员函数差不多 #因此也不能直接访问no static member
+		虚函数在vtabl的index是确定的
+		inline
+			无副作用的实参直接替换形参，有副作用的先创建临时变量并求值(避免重复绑定)，然后绑定临时变量
+			局部变换会修饰为唯一的名称，避免展开名称冲突
+	runtime 
+		编译器负责析构局部对象，因此程序有多个return 点时每个位置前编译器都要插入局部对象析构函数调用代码
+		为了支持对象数组，编译器内部构造生成一个无参的构造函数(及时在单object下不合成)
+		new 0字节会调整为1B，语言要求每次new返回不同的指针
+		临时对象一定要被复制/移动/&& ref来使用，生命周期不确定性，当作基本类型在表达式中使用*!
+		/*example
+			void test(const object& x);
+			object s,t;
+			test(s+t);
+		*/
+		ref也可以dynamic_cast，但失败会抛出异常(指针会置为nullptr)*!
+		c++与.so
+			共享库导出函数被其它模块使用，要保证接口的兼容性，共享库导出函数接口不建议使用c++，建议使用c封装
+			c++ABI兼容性差
+	

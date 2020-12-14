@@ -1,0 +1,78 @@
+向量化:向量IO,避免显式循环，可以提高速度.
+> ifelse(c(1,0,1,0),c("a"),c("b")) #向量化ifelse,根据第一个向量,对应元素T,F来决定输出哪一个值
+[1] "a" "b" "a" "b"
+> ifelse(c(1,0,1,0),c("a","a","a","a"),c("b",'b','b','b'))
+[1] "a" "b" "a" "b"
+R语言向量化某些场合会加快速度，因为R是一个函数式编程语言，for (i in 1:length(x)) x[i]+y[i]。for,:,[,+都是一个函数调用。因此此语句相比x+y只调用了1次+，消耗大量时间在函数调用上.
+> system.time(x+y) #向量化
+ 用户  系统  流逝 
+0.008 0.000 0.005 
+> system.time(for (i in 1:length(x)) x[i]+y[i]) #非向量化
+ 用户  系统  流逝 
+0.496 0.000 0.496 
+
+改变时拷贝:R对象发生改变时可能会copy原对象，然后修改。虽然copy不总会发生，但向量赋值应该是拖慢代码速度的首要怀疑对象。
+copy机制虽然避免了浅复制风险，但是拖慢了速度.
+> z<-c(1,2,3)
+> tracemem(z)
+[1] "<0x7fdd3021a2f0>"
+> z[3]<-4   #没有发生copy
+> tracemem(z)    
+[1] "<0x7fdd3021a2f0>"
+> y<-z       #y,z共用空间
+> tracemem(y)
+[1] "<0x7fdd3021a2f0>"
+> y[1]<-2    #发生copy
+tracemem[0x7fdd3021a2f0 -> 0x7fdd302122b8]: 
+> tracemem(y)
+[1] "<0x7fdd302122b8>"
+> tracemem(z)
+[1] "<0x7fdd3021a2f0>"
+> z[1]<-6 #发生copy
+tracemem[0x7fdd3021a2f0 -> 0x7fdd30212420]: 
+> y
+[1] 2 4 4
+> z
+[1] 6 4 4
+
+避免意外降维:
+> z<-matrix(c(1,2,3,4),nrow=2,ncol=2)
+> z
+     [,1] [,2]
+[1,]    1    3
+[2,]    2    4
+> x<-z[2,] #z[2,]第二行自动降为向量，而不是1*2矩阵
+> x
+[1] 2 4
+> str(x)
+ num [1:2] 2 4
+> class(x)
+[1] "numeric"
+> class(z)
+[1] "matrix"
+> x<-z[2,,drop=FALSE] #"[" is function ,drop=FALSE阻止drop
+> x
+     [,1] [,2]
+[1,]    2    4
+> class(x)
+[1] "matrix"
+
+Rprof()性能分析
+cf<-cmpfun(f)编译字节码
+
+debug(f)设置f为调试模式。每次运行f后进入browser.
+undebug(f)~debug(f)
+browser | setBreakpoint 下断点
+
+
+
+
+
+
+
+
+
+
+
+
+

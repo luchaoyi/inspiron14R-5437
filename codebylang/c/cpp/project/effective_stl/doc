@@ -1,0 +1,99 @@
+容器
+	list是事务语义的，事物语义保证了异常安全，但性能损失
+	empty 效率>= size==0的写法
+	欲将自定义类型class存储到容器，需要提供高效正确的拷贝/移动语义
+	使用容器装指针，容器销毁前，如有必要确保指针指向的资源被释放,防止资源泄漏
+	慎重考察容器的删除
+	stl容器不具有线程安全性
+	c++解析规则，尽可能解析为函数声明，尽量避免不经意的错误写法使语句被解析为函数声明
+	分配子*
+		标准规定同一类型的分配子是等价的，意味者可移植的分配子是无状态的不可以有非静态数据成员
+		分配子的allocate申请内存时返回的是T*指针，但T对象尚没有构造
+		自定义分配子时需要提供rebind模板，标准容器假定它存在
+		/*
+		list<T>分配子
+			list<T>需要的分配子不是分配T，而是分配一个list_node<T>,不仅包含T还有两个T*
+			为了提供可分配list_node的分配子，在T的分配子Allocator中提供了了一个嵌套的分配子Allocator::rebind<list_node>::other
+		*/
+		
+	很多泛型算法可以操作vector,deque,string，但不能操作list和关联容器(大多受限于迭代器类型)，此时一般list和关联容器会提供对应的成员函数
+	序列容器
+		vector,deque,string是连续内存的
+		list是基于节点的
+	关联容器是基于节点的
+	
+string&vector
+	string 大多数实现使用的引用计数来共享char[],避免字符拷贝
+	注意连续容器扩容的大开销，尽量一步到位，必要时预先调用reserve预留空间
+	vector v转指针&v[0]的隐含，v 为empty时，&v[0]指向不存在的元素*
+	不要使用vector<bool>它不是容器，被特例化了是一个位图对象的代理对象,考虑bitset或deque<bool>替代
+	swap技巧*
+		remove 没有缩减 size 
+		v.erase没有缩减 capacity
+	
+关联容器
+	相等&等价*	
+		相等 == 
+		等价 依据排序准则 !(k1  < k2) && !(k2 < k1)
+		成员函数.find使用等价find元素,泛型函数std::find使用相等查找元素
+	有时考虑用sorted vector + 二分查找替代关联容器*	
+		更少的内存，占用内存页更少，导致更少的缺页中断
+		树结构的额外开销
+		持久而频繁的查找应该优先选择关联容器
+	插入&更新*
+		[] 更新元素效率更高
+		insert插入效率更高
+			
+迭代器
+	反转迭代器
+		ri.base()*
+			转换ri为正向迭代器
+				rend|begin       [ri],[i] rbegin|end 
+				i=ri.base(),i指向ri后面一个元素
+	插入迭代器
+		内部包装一个容器，当对插入迭代器赋值时，会转为底层容器的push_back/front,insert
+	
+	移动迭代器
+		make_move_iterator
+		一般迭代器*iter返回一个指向元素的左值，移动迭代器返回一个右值引用&&,&&走移动构造函数分支，拷贝->移动 
+		
+算法
+	算法运行在迭代器之上，执行的是迭代器的操作，而不运行在容器上，因此不改变底层容器的大小(不直接添加/删除元素)
+		对目标容器空间 = 操作时确保range足够大，不会引发自动扩容，否则使用插入迭代器 将 = 导引为 push_back/front,insert
+		删除需要remove后调用容器的.erase
+		
+	排序
+		partial sort 构造max heap选择出top k元素，然后sort heap
+		nth element 使用快排划分，将nth大元素放置在nth pos,并以nth为分界 > nth <
+		partition 满足条件划分
+		
+	#更好的性能或保证正确性
+	sorted range 	
+		二分搜索 lgn
+			^222^
+			 lower_bound, upper_bound <- equal_range 
+		集合 排序使集合操作具有线性性能
+		unique不要求sorted range，但一般作用在sorted range
+		merge
+		includes
+	
+	list/forward_list
+		双向/前向迭代器，需要随机迭代器的泛型算法不能作用 
+		有特定容器的算法
+		
+functor
+	pass by value*
+		设计functor时遵循按照值传递的原则，保证按值传递的高效性和准确性，即小巧，单态*
+		若要使用多态，可使用pimpl模式，将多态封装到一个class，functor包含指针引用这个class
+	定义兼容STL体系的functor最好按要求继承相关基类，而不是自行typedef
+	
+	STL callback时functor快于函数* 
+		函数被decay转换为函数指针，函数指针是间接调用,大多数编译器不会对函数指针，inline
+		functor是直接调用，operator()是一个非virtual成员函数时，无多态，因此产生直接调用,且可以inline
+		c++ sort速度快于c qsort的原因
+		
+正确使用STL
+	操作容器时避免循环，使用具体含义的算法
+	特定容器同名成员函数优于适配多个容器的泛型算法
+	声明为const的成员函数内部，该对象的所有非静态的数据成员会转为相应的const类型，即const 对象调用const成员方法*
+	

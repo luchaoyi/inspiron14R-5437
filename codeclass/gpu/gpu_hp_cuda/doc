@@ -1,0 +1,62 @@
+<gpu高性能运算之cuda>
+设备计算能力描述GPU对cuda功能的支持程度
+nvcc编译
+	首先将host和device的代码分离，然后host代码交由ICC/GCC等编译
+	device代码被编译为ptx or cubin
+	cubin是二进制
+	ptx是gpu汇编代码,ptx可以由JIT编译器编译，ptx兼容性更强.
+
+
+纹理存储器
+	数据以1/2/3D形式存储于显存,通过缓存加速。非常适合图像处理，查找表，对大量数据随机访问和非对齐访问也有加速效果.
+
+
+同步函数
+	__syncthreads() 对一个blcok内的线程barrier操作.
+
+	memory fence
+		不要求线程运行到同一个位置，只保证执行 memory fence 函数的线程生产的数据，及时对其它线程可见，被其它线程安全消费.
+	
+	volatile 敏感变量
+
+	原子操作
+		atomic*(),对全局or共享存储器的一个32 or 64 字执行read-modify-write操作.
+
+	VOTE操作
+		vote指令可通过 __all or __any调用.
+		当一个wrap的所有线程表达式都为True时 return 1;
+		当一个wrap的任意线程表达式为True时 return 1;
+
+
+异步并行
+	cpu与gpu也可以异步执行，cpu启动kernel后可以立即返回进行其它操作.
+	流
+		流是管理并发的，不同流可能乱序执行或并行执行,因此一个流内的计算与另一个流的数据传输可以同时进行.
+
+	事件
+		事件管理可以监控device执行并准确计时
+
+多device
+	可以使用cuda设备管理和上下文管理使用多个device
+	可以使用openMP or MPI每个进程or线程set不同的device执行kernel 
+
+
+
+cuda优化准则
+	使用流，不用流,kernel可能乱序执行，可能并行
+	异步执行
+	WRAP对齐
+	循环展开
+	使用SFU利用硬件指令计算超越函数,会牺牲精度
+	内存优化
+		访存时对齐
+		全局存储器合并访问
+		use共享存储器减少显存访问,避免bank 冲突
+		常量存储器
+		纹理存储器 
+		主机端,页锁定内存,zero-copy优化
+
+
+
+
+

@@ -1,0 +1,691 @@
+大数据存储，对于数据的组织非常重要.
+HDF5是一种数据存储格式,python 的hdf5 常用接口有h5py and pytables
+
+HDF5数据组织
+	层次性分组，组，like file system 的目录
+	特征,允许在数据上直接附加描述性元数据
+	数据集,存储数据	
+	
+hdf5可以创建大的存储空间，在真正写入数据时才占用磁盘，支持透明压缩
+hdf5是存储相同类型数值的大数组，适用于可层次性组织需要被元数据标记的数据模型
+hdf5支持数组集子集分片和部分I/O.
+
+
+outline:
+	组类似与目录(组下可以放置子组或数据集)，在h5py中像python字典一样使用,可以迭代拥有字典API一个子集.
+	数据集类似与目录下的文件,在h5py中像numpy数组一样使用，拥有数组一个API子集.
+	特征，对h5对象添加描述,h5py的对象.attrs是此对象的特征对象，特征对象以字典方式工作.
+	
+	
+hdf5结构:
+----------------
+	用户代码
+----------------
+	各种语言接口
+-----------------
+	C API
+-----------------
+公共抽象:组，数据集，属性
+-----------------
+内部数据结构:
+	组索引B树
+	数据集分块存储等
+----------------
+1维文件 "地址空间"
+----------------
+底层驱动负责磁盘写入机制,如:
+	core驱动，可以让文件保存在内存中，读写速度快
+	family驱动,将一个文件分成固定大小块
+	mpio驱动,使用MPI使并发进程访问一个文件
+驱动对于上层是透明的,打开文件时使用driver参数指定驱动
+-----------------
+	磁盘字节
+-----------------	
+hdfview:图形化hdf5文件浏览器
+h5ls,h5dump:命令行浏览工具
+h5py,pytables:h5 python接口,pytables是基于h5的科学数据库模块更强大
+
+---------------------------------------------------------
+文件
+"w-"模式，实际还是使用了r+模式，不过在文件操作前会检查，不会覆盖同名文件
+f=h5py.File("im.hdf5","w-")
+f
+Out[19]: <HDF5 file "im.hdf5" (mode r+)>
+f.close()
+f=h5py.File("im.hdf5","w-")
+IOError: Unable to create file (Unable to open file: name = 'im.hdf5', errno = 17, error message = 'file exists', flags = 15, o_flags = c2)
+
+hdf5文件格式解析从文件头开始解析,hdf5库从(0,512,1024,...)字节依次搜索文件头，搜索到头时开始解析，因此，hdf5文件头不一定文件开始位置,若头部没有位于开始则头部前的位置可以被使用，这部分位于文件头之前的空间称为用户块，可以由用于任意写入数据(用户按需DIY).
+-------------------------------------------------
+数据集
+数据集读写操作会引发对文件的读写操作，这个对用户是透明的
+dataset对象可以的切片返回numpy的数组对象
+import numpy as np
+import h5py as h5
+f=h5.File('testfile.hdf5')
+f
+Out[4]: <HDF5 file "testfile.hdf5" (mode r+)>
+
+arr=np.ones((5,2))
+arr
+Out[6]: 
+array([[ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.]])
+
+f['my dataset']=arr
+dset=f['my dataset']
+dset
+Out[17]: <HDF5 dataset "my dataset": shape (5, 2), type "<f8">
+dset.value
+Out[18]: 
+array([[ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.]])
+
+type(dset.value)
+Out[27]: numpy.ndarray
+
+dset.dtype
+Out[19]: dtype('float64')
+dset.shape
+Out[20]: (5, 2)
+
+out=dset[...]
+out
+Out[22]: 
+array([[ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.],
+       [ 1.,  1.]])
+type(out)
+Out[23]: numpy.ndarray
+type(dset)
+Out[24]: h5py._hl.dataset.Dataset
+dset[1:4,1]=2.0
+dset[:]
+Out[26]: 
+array([[ 1.,  1.],
+       [ 1.,  2.],
+       [ 1.,  2.],
+       [ 1.,  2.],
+       [ 1.,  1.]])
+ 
+创建空数据集，使用dtype指定类型	
+dset=f.create_dataset('test1',(10,10))
+dset
+Out[29]: <HDF5 dataset "test1": shape (10, 10), type "<f4">
+dset.value
+Out[30]: 
+array([[ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],...dtype=float32)
+dset=f.create_dataset('test2',(10,10),dtype=np.complex64)
+dset.value
+Out[32]: 
+array([[ 0.+0.j,  0.+0.j,  0.+0.j,...0.+0.j,  0.+0.j,  0.+0.j]], dtype=complex64)
+
+将float32数据不做转换的读到np.float64数组中，read_direct可以直接将数据读入到一个已存在的np数组中.
+
+dset.dtype
+Out[51]: dtype('float32')
+out=np.empty((10,10),dtype=np.float64)
+dset.read_direct(out)
+out
+Out[55]: 
+array([[ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+       [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
+
+out.dtype
+Out[56]: dtype('float64')
+
+指定填充值创建时fill value
+dset=f.create_dataset('test3',(2,2),dtype=np.int32,fillvalue=10)
+dset.value
+Out[61]: 
+array([[10, 10],
+       [10, 10]], dtype=int32)
+       
+对hdf5的dataset对象进行切片操作，读和写都会访问文件，因此有隐藏开销。因此应避免频繁在dataset对象上直接进行读写。应考虑使用预读，预写的缓存机制.
+数据使用与硬件一致的endian速度比不一致的快很多，因此处理来自别人的数据时值得对检查有必要时进行转换.
+
+np.s_返回一个切片对象,此切片对象可以对数组，列表索引
+Slice=np.s_[5:9]
+Slice
+Out[10]: slice(5, 9, None)
+a=[1,2,3,4,5,6,7,8,9,10]
+a
+Out[12]: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+a[Slice]
+Out[13]: [6, 7, 8, 9]
+Slice
+Out[15]: slice(1, 5, 2)
+a[Slice]
+Out[16]: [2, 4]
+
+hdf5 dataset创建时指定maxshape，否则maxshape=shape,则数据集无法resize.若maxshape=(None,None),None代表了任意大,resize不能改变维度(e.g. 2D->3D).
+
+dset=f.create_dataset('size test',(2,2),dtype=np.int32,maxshape=(None,None))
+dset
+Out[38]: <HDF5 dataset "size test": shape (2, 2), type "<i4">
+dset[...]=[[1,2],[3,4]]
+dset.value
+Out[40]: 
+array([[1, 2],
+       [3, 4]], dtype=int32)
+  
+hdf5 resize与numpy的resize不同,hdf5 resize不要求数量匹配,resize少于去除，多于则填0，而numpy的resize数量必须匹配，只是重新组织数据
+dset.resize((1,2))
+dset
+Out[42]: <HDF5 dataset "size test": shape (1, 2), type "<i4">
+dset.value
+Out[43]: array([[1, 2]], dtype=int32)
+
+dset.resize((2,2))
+dset.value
+Out[49]: 
+array([[1, 2],
+       [0, 0]], dtype=int32)
+       
+       
+hdf5分块存储允许指定最适合特定访问模式的N维形状。当需要对磁盘写入数据时，h5将数据分成指定形状的块，写入磁盘，块存储在文件的各地，坐标由B树索引,分块大小创建数据后无法改变
+#chunks=(1,64,64)指定了分块为1*64*64，适合对于1*64*64的切片访问，更优性能.
+dset=f.create_dataset('chunked',(100,480,640),dtype='i1',chunks=(1,64,64))
+dset.chunks
+Out[15]: (1, 64, 64)
+f.flush()
+
+#chunks=True，则h5对自动分块,使用压缩器或过滤器不指定形状也会自动分块.
+dset=f.create_dataset('Imas',(100,480,640),dtype='f',chunks=True)
+dset.chunks
+Out[29]: (7, 30, 80)
+
+数据分块后读写最小单位时一个分块，指定了过滤器，则读写任何一个数据元素，都会处理一个块.
+压缩过滤器
+	gzip(deflate),h5最广泛压缩过滤器,h5内建，支持所有h5类型,适合慢速压缩(速度稍慢，压缩率高)
+	szip,nasa专利
+	lzf,与h5py一起发布,支持所有h5类型,压缩and解压速度快
+其它过滤器
+	shuffle,按字节重排数据，仅可与gzip,lzf共同使用,improve compress performance
+	fletcher32,数据写入时计算校验和，读取时再次计算比对，不一致则抛出错误,read fail.
+h5自身包含gzip,shuffle,fletcher32.因此与他人共享数据时，最好只使用它们.
+	
+dset=f.create_dataset('bigData',(1000,1000),'f',compression='gzip')
+dset.compression_opts
+Out[42]: 4
+dset.compression
+Out[43]: 'gzip'
+dset.chunks
+Out[44]: (63, 125)
+
+dset=f.create_dataset('Data',(1000,1000),'f',compression='gzip',shuffle=True)
+dset.shuffle
+Out[51]: True
+-----------------------------------
+组
+h5py.File本身就是一个组，组名为/,根组,File对象是Group对象的子类,Group是更通用的组
+f=h5py.File('./Groups.hdf5')
+f.name
+Out[6]: u'/'
+
+f.create_group,创建子组.
+subgroup=f.create_group('sb')
+subgroup
+Out[12]: <HDF5 group "/sb" (0 members)>
+subgroup.name
+Out[13]: u'/sb'
+组以/为根，以‘/’为分割符以类似目录结构来组织
+subgroup=subgroup.create_group('ag')
+subgroup.name
+Out[15]: u'/sb/ag'
+
+指定完整路径,create_group,和create_dataset会自动创建缺失部分
+out=f.create_group('/some/big/path')
+out.name
+Out[18]: u'/some/big/path'
+f.values()
+Out[27]: [<HDF5 group "/sb" (1 members)>, <HDF5 group "/some" (1 members)>]
+out=f.create_dataset('/A/B/C/a',(100,100),dtype='i1')
+out.name
+Out[31]: u'/A/B/C/a'
+f.values()
+Out[35]: 
+[<HDF5 group "/A" (1 members)>,
+ <HDF5 group "/sb" (1 members)>,
+ <HDF5 group "/some" (1 members)>]
+ 
+#subgroup['/sb/ag/d1'] <=> subgroup['/sb/ag']['d1']
+subgroup['/sb/ag/d1']
+Out[44]: <HDF5 dataset "d1": shape (), type "<i8">
+subgroup['/sb/ag']['d1']
+Out[50]: <HDF5 dataset "d1": shape (), type "<i8">
+
+#parent获得父组，File获得所属File对象
+subgroup.parent
+Out[51]: <HDF5 group "/sb" (1 members)>
+subgroup.file
+Out[53]: <HDF5 file "Groups.hdf5" (mode r+)>
+
+hard link
+	dataset 和 group本身没有名字，只有一个文件地址。当赋予对象名字，则名字与地址关联形成了一个链接,因此一个对象可以有多个名字(多个链接)，指向对象的link为0则对象占用空间被释放.
+		
+#/y /x,指向同一个对象.
+grpx=f.create_group('x')
+grpx.name
+Out[57]: u'/x'
+f['y']=grpx
+grpy=f['y']
+grpy.name
+Out[60]: u'/y'
+grpy==grpx
+Out[63]: True
+#删除对象链接，一旦链接完全删除，对象被销毁
+del f['y']
+
+h5工具包
+lcy@lcy:~$ h5
+h52gif         h5diff         h5jam          h5perf_serial  h5repart
+h5copy         h5dump         h5ls           h5redeploy     h5stat
+h5debug        h5import       h5mkgrp        h5repack       h5unjam
+h5repack对大文件重打包，可以节省剩余空间
+$h5repack I.hdf5 O.hdf5
+
+soft link
+	是h5py的功能方便python使用，不存在与hdf5,它就是一个固定路径不追踪对象本身.
+external link
+	指向别的h5文件的对象
+	
+require_dataset and require_group 用来create对象，但会检查如果存在则直接返回对象.
+
+Vistor模式遍历对象，不是以迭代器方式，而是提供callback function,由hdf5遍历对象
+
+def printname(name):
+    print name
+    
+visit传递到回调函数的参数是对象的名字，对象即使有多个hard link ,visit保证对象只被访问一次
+f.visit(printname)
+A
+A/B
+A/B/C
+A/B/C/a
+sb
+sb/ag
+sb/ag/d1
+sb/ag/d2
+sb/ag/d3
+some
+some/big
+some/big/path
+some/big/path/a
+x
+x/a
+
+visititems提供一个名字和对象，打开对象需要额外开销，因此在真正使用对象到时使用visititems
+def printobj(name,obj):
+	print name,obj
+f.visititems(printobj)
+对于遍历的回调函数无返回值即返回了None，如果指定返回值，则在返回值时变量立即停止
+f.copy可以将对象复制，src和dest不必位于同一个文件，可以正确处理递归复制
+h5对象的bool值可以指示它的生存状态.
+bool(f)
+Out[5]: True
+f.close()
+f
+Out[12]: <Closed HDF5 file>
+bool(f)
+Out[7]: False
+
+
+gx=f['x']
+gy=f['y']
+#gx和gy是同一个对象，即x，y名称不同指向了同一个对象.
+gx==gy
+Out[29]: True
+
+#gx和gy的id不同因此是不同的python对象，因此这里的相等不是python对象相等,而是h5对象相同,这个使用了h5底层功能.
+#gx和gy的hash值是相同的
+
+id(gx)
+Out[31]: 140647227500752
+id(gy)
+Out[32]: 140647227501200
+hash(gx)
+Out[33]: 2596698645632494157
+hash(gy)
+Out[34]: 2596698645632494157
+-------------------------
+特征
+	附加在对象上的元数据，可以存放对象描述信息
+	
+f=h5py.File('attrsdemo.hdf5')
+f
+Out[40]: <HDF5 file "attrsdemo.hdf5" (mode r+)>
+dset=f.create_dataset('dataset',(100,))
+dset
+Out[42]: <HDF5 dataset "dataset": shape (100,), type "<f4">
+
+#.attrs，h5特征对象，attrs对象以python字典方式工作
+dset.attrs
+Out[47]: <Attributes of HDF5 object at 140647227280752>
+dset.attrs['title']='Dataset use experiments'
+dset.attrs['sample_rate']=100e6
+dset.attrs['run_id']=144
+dset.attrs.items()
+
+Out[59]: 
+[(u'title', 'Dataset use experiments'),
+ (u'sample_rate', 100000000.0),
+ (u'run_id', 144)]
+ 
+#attrs可以存储数组，attrs大小有限制(64k)
+dset.attrs['one']=np.ones((100,))
+
+#.ref可以得到h5对象的引用,引用可以用来索引对象
+#attrs可以保存h5的ref类型
+dset
+Out[85]: <HDF5 dataset "dataset": shape (100,), type "<f4">
+dset.ref
+Out[86]: <HDF5 object reference>
+f[dset.ref]
+Out[87]: <HDF5 dataset "dataset": shape (100,), type "<f4">
+
+#字典式创建和改变attrs无法指定类型或保持类型不变
+
+#.create可以指定类型
+#.modify修改类型不变，超出范围则会被截断
+dset.attrs.create('a int',100,dtype='i2')
+dset.attrs['a int']
+Out[94]: 100
+dset.attrs.modify('a int',33.3)
+dset.attrs['a int']
+Out[96]: 33
+-------------------------
+类型
+
+#np.dtype 与 np.int32...的关系
+a=np.dtype('i')
+a.type
+Out[105]: numpy.int32
+a.type?
+Type:        type
+String form: <type 'numpy.int32'>
+File:        /usr/lib/python2.7/dist-packages/numpy/__init__.py
+Docstring:   32-bit integer. Character code 'i'. C int compatible.
+a=np.dtype('l')
+a
+Out[108]: dtype('int64')
+a.type
+Out[109]: numpy.int64
+a.type?
+Type:        type
+String form: <type 'numpy.int64'>
+File:        /usr/lib/python2.7/dist-packages/numpy/__init__.py
+Docstring:   64-bit integer. Character code 'l'. Python int compatible.
+a=np.dtype('i2')
+a.type?
+Type:        type
+String form: <type 'numpy.int16'>
+File:        /usr/lib/python2.7/dist-packages/numpy/__init__.py
+Docstring:   16-bit integer. Character code ``h``. C short compatible.
+a=np.dtype('i1')
+a.type?
+Type:        type
+String form: <type 'numpy.int8'>
+File:        /usr/lib/python2.7/dist-packages/numpy/__init__.py
+Docstring:   8-bit integer. Character code ``b``. C char compatible.
+a.type
+Out[115]: numpy.int8
+
+固定长度字符串
+dt=np.dtype('S10')
+dt
+Out[123]: dtype('S10')
+dt.type
+Out[124]: numpy.string_
+h5支持定长字符串，h5定长是字节长度，因此只支持ASCII定长串，numpy可以创建两字节一个字符的Unicode宽字符，但h5不支持Unicode定长是
+dt=np.dtype('U10')
+dt
+Out[131]: dtype('<U10')
+dt.type
+Out[132]: numpy.unicode_
+
+变长字符串
+	引用，变长字符串，枚举类型是h5有，而numpy没有的。numpy设计主要用于数值计算，数组所有元素具有相同大小。
+
+创建变长字节字符串(ASCII)
+dt=h5py.special_dtype(vlen=str)
+dt
+Out[142]: dtype('O')
+dset=f.create_dataset('vlen_str',(100,),dtype=dt)
+dset
+Out[144]: <HDF5 dataset "vlen_str": shape (100,), type "|O">
+dset[0]="hello"
+dset[1]="x"*100
+创建变长Unicode
+
+dt=h5py.special_dtype(vlen=unicode)
+dt
+Out[154]: dtype('O')
+dset=f.create_dataset('vlen_un',(100,),dtype=dt)
+dset
+Out[156]: <HDF5 dataset "vlen_un": shape (100,), type "|O">
+dset[0]='hello'
+dset[0]
+Out[158]: u'hello'
+
+dset[1]="哈哈"
+dset[1]
+Out[166]: u'\u54c8\u54c8'
+print dset[1]
+哈哈
+
+
+#numpy结构化复合类型
+dt=np.dtype([("temp",np.float),("pressure",np.float),("wind",np.float)])
+dt
+Out[194]: dtype([('temp', '<f8'), ('pressure', '<f8'), ('wind', '<f8')])
+
+a=np.zeros((3,3),dtype=dt)
+
+a
+Out[196]: 
+array([[(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)],
+       [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)],
+       [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)]], 
+      dtype=[('temp', '<f8'), ('pressure', '<f8'), ('wind', '<f8')])
+      
+a['temp']
+Out[197]: 
+array([[ 0.,  0.,  0.],
+       [ 0.,  0.,  0.],
+       [ 0.,  0.,  0.]])
+a['pressure']
+Out[198]: 
+array([[ 0.,  0.,  0.],
+       [ 0.,  0.,  0.],
+       [ 0.,  0.,  0.]])
+a['wind']
+Out[199]: 
+array([[ 0.,  0.,  0.],
+       [ 0.,  0.,  0.],
+       [ 0.,  0.,  0.]])
+       
+可以按结构名访问，得到不同成员数组的一面数组，也可以按层次索引
+a[0]
+Out[210]: 
+array([(0.0, 2.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0)], 
+      dtype=[('temp', '<f8'), ('pressure', '<f8'), ('wind', '<f8')])
+a[0][0]
+Out[211]: (0.0, 2.0, 1.0)
+a[0][0][0]
+Out[212]: 0.0
+
+
+h5符合类型，可同时使用名称和切片
+dset=f.create_dataset('compound',(3,3),dtype=dt)
+dset["temp",2,2]
+Out[222]: 0.0
+
+复数类型
+In [229]: dset=f.create_dataset('s_c',(3,3),dtype='c8')
+In [231]: dset[...]
+Out[231]: 
+array([[ 0.+0.j,  0.+0.j,  0.+0.j],
+       [ 0.+0.j,  0.+0.j,  0.+0.j],
+       [ 0.+0.j,  0.+0.j,  0.+0.j]], dtype=complex64)
+       
+       
+数组类型，每一个成员是一个数组，另类扁平多维数组，没有多的维度，只不过每一个元素是一个数组。
+
+dt=np.dtype('(2,2)f')
+dt
+Out[25]: dtype(('<f4', (2, 2)))
+dset=f.create_dataset('array',(2,2),dtype=dt)
+dset[...]
+Out[27]: 
+array([[[[ 0.,  0.],
+         [ 0.,  0.]],
+
+        [[ 0.,  0.],
+         [ 0.,  0.]]],
+
+
+       [[[ 0.,  0.],
+         [ 0.,  0.]],
+
+        [[ 0.,  0.],
+         [ 0.,  0.]]]], dtype=float32)
+每一个成员是2*2数组
+dset[0][0]
+Out[29]: 
+array([[ 0.,  0.],
+       [ 0.,  0.]], dtype=float32)
+
+
+#h5中是2*2数组，每一个元素是2*2数组
+dset.shape
+Out[30]: (2, 2)
+#转化为numpy为2*2*2*数组,numpy会增加额外维度
+dset[...].shape
+Out[31]: (2, 2, 2, 2)
+
+不透明类型void(V),存储非数值二进制数据，存入二进制数据所有bit。
+dt=np.type('V100')
+
+
+引用类型hdf5的指针
+	h5py.Reference
+引用指向h5对象，引用可以像链接一样当作字典的键，解引用获得对象。但引用可以保存为数据，对象重命名引用不受影响.
+	引用 is a "永不失效的 link"
+	引用是h5数据类型
+	
+dt=h5py.special_dtype(ref=h5py.Reference)
+ref_dset=f.create_dataset('ref',(10,),dtype=dt)
+ref_dset[...]
+#初始ref是null
+Out[10]: 
+array([<HDF5 object reference (null)>, <HDF5 object reference (null)>,
+       <HDF5 object reference (null)>, <HDF5 object reference (null)>,
+       <HDF5 object reference (null)>, <HDF5 object reference (null)>,
+       <HDF5 object reference (null)>, <HDF5 object reference (null)>,
+       <HDF5 object reference (null)>, <HDF5 object reference (null)>], dtype=object)
+
+dset[...]
+Out[30]: 
+array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.], dtype=float32)
+
+
+#区域引用，引用一个数据的一个区域
+dset.name
+Out[31]: u'/dataset'
+dset.regionref
+Out[32]: <h5py._hl.base._RegionProxy at 0x7fb1afb0e6d0>
+#使用代理对象创建一个区域引用
+ref_out=dset.regionref[10:30]
+ref_out
+Out[34]: <HDF5 region reference>
+#使用区域引用
+dset[ref_out]
+Out[39]: 
+array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.], dtype=float32)
+
+
+#dset的区域引用可以当作对象引用使用，来索引数据集
+f[ref_out]
+Out[40]: <HDF5 dataset "dataset": shape (100,), type "<f4">
+
+f[ref_out][ref_out] #<=>dset[ref_out]
+Out[41]: 
+array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.,  0.,  0.,  0.], dtype=float32)
+
+h5py命名类型，可以在h5文件中存储一个类型数据，创建数据集时使用这个类型
+f['mytype']=np.dtype('float32')
+f['mytype']
+Out[46]: <HDF5 named type "mytype" (dtype <f4)>
+dset=f.create_dataset('typedemo',(5,),dtype=f['mytype'])
+dset
+Out[49]: <HDF5 dataset "typedemo": shape (5,), type "<f4">
+dset[...]
+Out[50]: array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
+
+
+
+
+
+---------------
+MPI
+	基于MPI的程序启动多个python解释器(一个python解释器有一个GIL)，通过MPI通信
+	hdf5为MPI提供了mpio驱动
+	
+mpi程序运行	mpiexec -n ? 可执行文件
+lcy@lcy:~/Desktop/HDF5/mpi$ mpiexec -n 4 python mpi_hello.py 
+hello world (from process 1)
+hello world (from process 2)
+hello world (from process 3)
+hello world (from process 0)
+
+mpi启动多个平行进程，通过MPI库通信，完成工作协同
+hdf5约束,对文件的元数据修改必须通过集体操作。违反约束不会引发异常，但会威胁到数据.
+不涉及元数据的数据集读写是没有问题的
+集体操作约束:
+	打开，关闭文件		
+	创建删除h5组，数据集，属性，命名类型
+	改变数据集形状
+	移动复制对象
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,118 @@
+*装饰器与AOP
+面向切面编程(Aspect Oriented Program):
+	[设计模式孜孜不倦追求的是调用者和被调用者之间的解耦,提高代码的灵活性和可扩展性]
+	
+	面向对象的特点是继承、多态和封装。而封装要求将功能分散到不同的对象中，这在软件设计中称为职责分配,让不同的类设计不同的方法。这样代码就分散到了不同的类。这样降低了代码的复杂程度，使类可重用。但在分散代码的同时，也增加了代码的重复性。比如说，在两个类A和B中，需要在每个方法中输出日志。按面向对象的设计方法，必须在两个类的方法中都添加日志的代码。即使它们是完全相同的.因为面向对象的设计让类与类之间无法联系，而不能将这些重复的代码统一起来。Though可以将这段代码封装在独立类的独立方法C中，然后在这两个类方法中调用，but添加日志功能的两个类A和B跟这个独立类C产生了耦合，C的改变会影响A和B。
+	
+	在运行时，动态地将代码切入到类的指定方法、指定位置上的编程就是面向切面的编程。 切入到指定类指定方法的代码片段称为切面，而切入到哪些类、哪些方法则叫切入点。AOP可以把多个类的共有代码，抽取到一个切片中，等到需要时再切入对象中去，从而改变其原有的行为。
+	
+	AOP是对OOP的补充。，把逻辑代码和处理琐碎事务的代码分离，分离代码复杂度,在同一时间只用思考代码逻辑或琐碎事务。如代码逻辑是插入一条数据，琐碎事务包括获取连接和关闭连接，事务开始，事务提交。切面就是指在大堆繁琐事务中的逻辑代码。
+	
+	面向对象编程是关注将需求功能划分为不同的并且相对独立，封装良好的类，并让它们有着属于自己的行为，依靠继承和多态等来定义彼此的关系的话；那么面向切面编程则是希望能够将通用需求功能从不相关的类当中分离出来，能够使得很多类共享一个行为，一旦发生变化，不必修改很多类，而只需要修改这个行为即可
+	
+*python字符串
+
+python str对象以某种编码(utf8,ascii,gbk...)存储字符串对象，不同编码不能直接转化，需要先decode为unicode字符串对象，然后encode为某种编码
+a="你妹子的"
+a
+Out[5]: '\xe4\xbd\xa0\xe5\xa6\xb9\xe5\xad\x90\xe7\x9a\x84'
+
+import chardet
+a
+Out[7]: '\xe4\xbd\xa0\xe5\xa6\xb9\xe5\xad\x90\xe7\x9a\x84'
+
+b="113234bdf&"
+b
+Out[9]: '113234bdf&'
+chardet.detect(a)
+Out[10]: {'confidence': 0.938125, 'encoding': 'utf-8'}
+chardet.detect(b)
+Out[11]: {'confidence': 1.0, 'encoding': 'ascii'}
+c=unicode(b)
+c
+Out[16]: u'113234bdf&'
+c.encode('utf8')
+Out[17]: '113234bdf&'
+c
+Out[18]: u'113234bdf&'
+
+d=c.encode('utf8')
+d
+Out[20]: '113234bdf&'
+chardet.detect(d)
+Out[21]: {'confidence': 1.0, 'encoding': 'ascii'}
+
+
+open
+In [150]: f=open('l','w')
+In [151]: f.writelines(['aa','bb'])
+In [152]: os.linesep #操作系统换行符号
+Out[152]: '\n'
+In [153]: f.write(os.linesep)
+In [154]: f.writelines(['aa','bb'])
+In [155]: f.write(os.linesep)
+In [156]: f.close()
+In [166]: with open("l") as f: #with保证最终关闭文件流，
+        	for line in f.readlines():
+     			 print line.strip('\n')
+aabb
+aabb
+fileinput.input()可以只读取需要的部分，可以节省内存
+for line in fileinput.input("l"):
+    print line
+ 
+aabb
+aabb
+较新版本的python文件对象本身可以迭代
+for line in open("l"):
+    print line
+    
+aabb
+aabb
+
+
+#StringIO将字符串封装为类似文件接口的对象
+a=StringIO.StringIO("abcdefg")
+a
+Out[6]: <StringIO.StringIO instance at 0x7efc9045f9e0>
+a.read()
+Out[7]: 'abcdefg'
+a=StringIO.StringIO("abcdefg")
+a.read(1)
+Out[10]: 'a'
+a.read(1)
+Out[11]: 'b'
+a.read(1)
+Out[12]: 'c'
+
+
+
+#input按照输入对象格式等解析输入对象,raw_input将对象当作原生字符串
+>>> a=input()
+"1313"
+>>> a
+'1313'
+>>> "1313"
+'1313'
+>>> a=input()
+132143
+>>> a
+132143
+>>> a=input()
+["a",1]
+>>> a
+['a', 1]
+>>> a=1
+>>> b=input()
+a
+>>> b
+1
+>>> a=raw_input()
+"1213"
+>>> a
+'"1213"'
+>>> a=raw_input()
+[1212,131]
+>>> a
+'[1212,131]'
+

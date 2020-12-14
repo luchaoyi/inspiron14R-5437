@@ -1,0 +1,245 @@
+Redis is Remote dictionary server
+
+编译安装
+make 
+make test 是否正确编译
+make install
+可执行文件
+redis-benchmark  redis-check-rdb  redis-sentinel  
+redis-check-aof  redis-cli        redis-server
+
+client-server模式，使用TCP/IP通信
+	服务器启动redis-server
+	客户端使用redis-cli connect server 
+
+一个Redis实例提供N个字典(可配置个数,默认16)，存储数据使用编号0-N-1选择，不支持自命名,字典并不是完全隔离的,不同应用应该创建不同Redis实例.
+在多个端口启动Redis-server进程,启动了多个Redis实例,Redis存储数据在内存中，并异步持久化到磁盘
+
+type key
+	string
+		存储任何形式的字符串，包括二进制数据,Redis没有float/int类型,但可以string类型存储，Redis提供了一些运算操作
+		即数据以string形式存储，本质上是二进制数据，操作决定了如何看待这些数据
+		127.0.0.1:6379> SET num 1
+		OK
+		127.0.0.1:6379> GET num 
+		"1"
+		127.0.0.1:6379> INCR 1
+		(integer) 3
+		127.0.0.1:6379> GET num 
+		"1"
+		127.0.0.1:6379> INCR num
+		(integer) 2
+		127.0.0.1:6379> GET num
+		"2"
+		127.0.0.1:6379> INCRBY num 3
+		(integer) 5
+		127.0.0.1:6379> INCRBYFLOAT num 2.2
+		"7.2"
+		127.0.0.1:6379> STRLEN num     #7.2字符长度3
+		(integer) 3
+
+		可以将二进制编码为字符串存储,并利用Redis位操作,非常紧凑的存储和bool值
+	
+	hash
+		hash类型也是字典结构,hash散列的key(为区别数据库的key称为field)只能是字符串，即hash类型不能嵌套hash
+							 key:(field fieldvalue)
+		127.0.0.1:6379> HSET car price 500
+		(integer) 1
+		127.0.0.1:6379> HSET car name BMW
+		(integer) 1
+		127.0.0.1:6379> HGET car name
+		"BMW"
+		127.0.0.1:6379> HMGET car price name
+		1) "500"
+		2) "BMW"
+		127.0.0.1:6379> HGETALL car
+		1) "price"
+		2) "500"
+		3) "name"
+		4) "BMW"
+		127.0.0.1:6379> HKEYS car
+		1) "price"
+		2) "name"
+		127.0.0.1:6379> HVALS car
+		1) "500"
+		2) "BMW"
+		127.0.0.1:6379> HLEN car #key car下hash的field的数量
+		(integer) 2
+
+	list
+		R/L代表左右
+		127.0.0.1:6379> LPUSH numbers 2 3 4  #left push 2|3|4 
+		(integer) 3
+		127.0.0.1:6379> RPOP numbers
+		"2"
+		127.0.0.1:6379> LPOP numbers
+		"4"
+		127.0.0.1:6379> RPUSH numbers 1 2 4
+		(integer) 4
+
+		127.0.0.1:6379> LRANGE numbers 0 3 #numbers[0:3]
+		1) "3"
+		2) "1"
+		3) "2"
+		4) "4"
+		127.0.0.1:6379> LLEN numbers
+		(integer) 4
+
+		#按index修改和查找值
+		127.0.0.1:6379> LINDEX numbers 3
+		"4"
+		127.0.0.1:6379> LSET numbers 2 10
+		OK
+
+	set 
+		集合与列表区别在于没有顺序概念，元素是唯一的
+
+		127.0.0.1:6379> SADD letters a bc d
+		(integer) 3
+		127.0.0.1:6379> SADD letters a bc d #已经存在
+		(integer) 0
+		127.0.0.1:6379> SREM letters a  #REM is remove
+		(integer) 1
+		127.0.0.1:6379> SADD letters a bc d
+		(integer) 1
+		127.0.0.1:6379> SMEMBERS letters #members
+		1) "d"
+		2) "a"
+		3) "bc"
+
+		#集合运算 S[DIFF,INTER,UNION] key is (- & |)
+		127.0.0.1:6379> SISMEMBER letters b #is member ?
+		(integer) 0
+		127.0.0.1:6379> SISMEMBER letters bc
+		(integer) 1
+
+	zset
+		有序集合为集合元素关联一个score，结合按分数元素排序,改变元素关联分数可以影响元素的顺序
+		因此不仅可以完成set相关操作，也支持分数相关的操作
+
+	#score member
+	127.0.0.1:6379> ZADD scoreboard 89 Tom 67 Peter 100 David
+	(integer) 3
+	127.0.0.1:6379> ZADD scoreboard 76 Tom #修改Tom的score也使用Zadd
+	(integer) 0
+	127.0.0.1:6379> ZADD scoreboard -inf a +inf b 12.2 c
+	(integer) 3
+
+	#zset可以基于分数和分数rank执行一些操作
+	zset集合操作时同元素的关联分数可以指定aggregate为MAX|MIN|SUM
+	
+	位串
+		SETBIT KEY offset 1|0  
+		GETBIT KEY offset
+		BITOP OR|AND|NOT KEY0 KEY1 两个位串进行位操作
+		BITCOUNT KEY 统计位串1的个数
+	
+	
+	redis事务是一组命令集合，要么都执行，要么都不执行.一个事务的所有命令会依次执行不被其它命令插入
+		127.0.0.1:6379> MULTI #开始事物
+		OK
+		127.0.0.1:6379> SET a 1 #命令依次存储在队列中
+		QUEUED
+		127.0.0.1:6379> SET a  2
+		QUEUED
+		127.0.0.1:6379> SET a  3
+		QUEUED
+		127.0.0.1:6379> exec  #执行事务
+		1) OK
+		2) OK
+		3) OK
+		
+		错误处理:
+			某命令语法错误，则all命令不被执行
+			某命令运行时错误，其它指令仍然被执行,不支持rollback.
+		
+		 watch   命令可以在事务外监视一个or多个key，若在事务外key的value改变，则事务不会执行	
+		 unwatch 命令用于取消 WATCH 命令对所有 key 的监视
+
+		127.0.0.1:6379> EXPIRE key 10  #设置key存活时间，单位second
+		(integer) 1
+		127.0.0.1:6379> TTL key #剩余存活时间
+		(integer) 6
+		127.0.0.1:6379> GET key
+		"11"
+		127.0.0.1:6379> GET key
+		(nil)
+		127.0.0.1:6379> TTL key #已被清除 -1代表永久存活
+		(integer) -2
+
+		发布/订阅(publish/subscribe)模式
+	subscribe订阅一个or多个频道，publish向频道发布消息，所有订阅此频道的subscribe
+#发布者进程
+	127.0.0.1:6379> PUBLISH ch1 hi
+	(integer) 1
+	127.0.0.1:6379> PUBLISH ch1 hello
+	(integer) 1
+
+#订阅者进程
+	127.0.0.1:6379> SUBSCRIBE ch1
+	Reading messages... (press Ctrl-C to quit)
+	1) "subscribe"
+	2) "ch1"
+	3) (integer) 1
+
+	1) "message"
+	2) "ch1"
+	3) "hi"
+	1) "message"
+	2) "ch1"
+	3) "hello"
+
+	Redis管道
+		一次发送多条命令到server并将结果通过管道一并发会，减少客户端与Redis的通信次数
+	Redis 是基于内存的数据库，all data存储在内存中，磁盘上是一个数据备份(异步备份到磁盘)
+	Redis定义了多种数据存储的方式，同一种Redis类型(string,list,set,zset,hash)可能使用不同的c语言数据结构编码存储,会根据具体情况自动转换
+
+	Redis2.6退出脚本功能,允许使用Lua脚本传到Redis执行,Lua中可调用大部分的Redis命令 
+	脚本可一次传递多条命令减少网络开销，整个脚本为一个整体，不会被其它命令插入,可以用脚本完成事务
+	
+
+	
+持久化
+	RDB方式
+		通过快照完成持久化,为内存中的所有数据在磁盘上生成一份副本
+		对数据进行快照的情况:
+			根据配置规则自动快照
+			SAVE 会阻塞所有客户端请求,同步快照
+			BGSAVE 后台异步快照
+		快照完成才用新文件替换旧文件，因此任何时候RDB文件都是完整的
+	AOF方式(配置 appendonly yes 启动)(安全性更高)
+		会将Redis每一条写命令(数据添加/更改)追加到硬盘文件中。
+		启动时载入AOF执行命令恢复数据,速度相对慢.
+		BGREWRITEAOF可以使Redis执行优化重写AOF文件，删除冗余命令
+	
+
+分布式
+
+	复制
+		将数据库复制多个副本，以部署到不同服务器上.Redis复制功能，可实现一台数据库更新后，自动将数据同步到其它数据库
+		master数据库是被复制的数据库，从数据库是其副本，master自动同步到slave数据库
+		只需要配置salveof在slave数据库,master无需配,slave默认只读,只接受从master的同步更改.可配置slave为可写但不影响其它数据库.
+		slave数据库可更改配置转为master数据库 
+
+		原理
+			复制初始化
+				slave数据库启动后向master发送SYNC命令
+				master收到sync后进行快照操作，并存储快照期间的写命令
+				快照完成后向slave发送快照和缓存的命令
+				slave载入快照和命令
+			复制同步
+				初始化完成后，master后向连接的slave持续发送命令,同步数据
+
+		通过复制可以实现读写分离,提高服务器负载能力.一主多从结构很适合读多写少,当主数据库崩溃时，可以将slave数据库转为master提供服务，将崩溃的master转为slave重启恢复.
+	
+	哨兵
+		监控master和slave运行状况,当master故障时自动进行提升转换操作
+
+	集群
+		集群的存储位置为slot,所有的slot被分配到不同的节点.所有的key分配给不同的插槽
+		即key存储在slot,slot数量一定，每个节点申请一部分slot.
+
+管理
+	安全	
+		配置bind IP,则只允许被bind的IP访问数据库
+		配置requirepass 密码,设置数据库密码，需要使用AUTH 密码来认证

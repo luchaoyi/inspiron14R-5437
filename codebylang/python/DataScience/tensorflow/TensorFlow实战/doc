@@ -1,0 +1,125 @@
+tf特点
+		单机和分布式两种模式
+		tf可映射到多个硬件设备上执行(CPU/GPU/TPU),只有一个执行设备时，按拓扑序顺序执行，
+		分布式tf具有容错性，使用周期性心跳包，故障被检测时，计算图会终止重启。
+		Variable node会链接Save node每迭代几轮会保存一次数据到持久化存储系统，并链接Restore node,发送故障时恢复数据。重启后不用从头再来。
+		tf框架使用函数定义了一套运算和流程控制，从这个角度看相当于一个语言
+		clinet->通过session接口连接server->|server是{master-slave worker}结构|
+------------------
+自编码器
+	特征稀疏表达
+		研究发现，复杂特征可以由少量正交的基本特征线性组合表示.so 关键在于如何提取基本特征
+	无标注数据下可以使用自编码器学习基本特征
+		隐含层数量少可降维
+		L1正则化稀疏化
+		去噪自编码器给数据加入噪声学习去噪
+	
+	tf实现
+		xavier参数初始化
+			权重初始化太小，信号多层传递逐渐缩小，难以产生作用。
+			权重初始化太大，逐渐发散导致失效
+			xavier让权重满足0均值方差为2/nin+nout,分布可以用高斯或均匀分布
+		自编码器学习复原自己，自动提取高阶特征	.
+		
+		
+多层感知机
+	有理论表示NN的全局最优解是容易过拟合的点，很多局部最优点泛化能力反而比较好
+	ReLU
+		单侧抑制
+		稀疏激活性
+		相对宽阔的兴奋边界
+	
+	dropout
+		训练时将神经网络某一层的输出节点数据随机丢弃一部分,测试时关闭dropout
+	
+CNN
+	以前借助SIFT,HoG等算法提取图片特征,然后使用SVM识别.
+	最常见的卷积层:
+		卷积+bias->Relu->池化
+	流行的Trick有
+		Batch Normalization
+		dropout
+		加上一个LRN(局部响应归一化层)层 tf.nn.lrn
+			lrn模仿了生物神经元的侧抑制，最大的变得更大，抑制其它小的
+			适合relu这种无上界的，不适合sigmod有固定边界且能抑制过大值的函数
+		L2正则化
+		数据增强
+		GPU加速
+	卷积池化倾向于提取特征,FC层倾向于组合特征
+	设计CNN就是安排不同层的分布和顺序，以及超参数和trick的使用
+
+RNN
+	RNN对最后输入的样本信息记忆最深，会淡化更早的输入信息->LSTM
+	双向RNN结合正向1-T,和反向T-1，利用了历史和未来的信息,有效的利用了上下文
+	
+AlexNet
+	SAME padding 卷积不改变尺寸
+	ReLu,dropout,数据增强
+	LRN,据Ng说,研究人员发现LRN没有明显作用，现在不常用了且去除lrn可以缩短运算时间
+	
+VGG-16
+	网络变换有规律,	SAME padding 卷积不改变尺寸,每次池化height和width缩小一半，卷积核(通道)增加一倍.	
+	先训练vgg简单版本，然后用它的参数，初始化复杂网络可加快训练
+	相比AlexNet，使用更小的卷积核和更深的网络收敛更快		
+	
+Google Inception Net
+	1x1卷积可以用来对通道数进行扩大和压缩,1x1卷积将同一位置不同通道的单元连接在一起，这些单元是具有高度相关性的,符合hebb原理
+	pool可以用来对H和W进行压缩
+	Inception Net
+		使用了Inception Module，将多个卷积核和池化放在一层，由网络自己选择，为降低运算复杂度，先使用1x1卷积压缩通道数后进行3x3或5x5卷积运算，然后使用1x1扩大到需要的通道数.
+		网络从中间某些层输出预测结果，有多个预测结果,可加权构造最终结果
+		更小的卷积核串行比一个更大的卷积核有效
+ResNet
+	网络x期望为H(x),不学习H(x)，将x直接送到输出，则需要学习的是H(x)-x残差，因此被称为残差网络
+	跳连接网络，之间将浅层输出跨越多个层接入到更深的层,可视作一种对网络结构正则化的技术
+	a[l+2]=g(w[l+2]*a[l+1]+b[l+2]+a[l]),a[l]跨越一层从l到l+2,对w和b施加2范数正则化约束.
+	在优化策略下，优化算法若发现没有隐藏层也可以更优则w,b被置0，此时a[l+2]=g(a[l]),隐层层相当于被移除
+	若w,b不为0,即隐藏层需要学到东西更优，则隐藏层发挥作用。跳连接不保证结果更好但至少不会更差.跳连接倾向于简化网络结构，是一种正则化技术
+--------
+tf.Session()
+	会话管理tf程序拥有的系统资源
+		
+下面两句都是将a交给会话sess执行求值
+a.eval(session=sess)
+Out[22]: array([1, 2, 3], dtype=int32)
+sess.run(a)
+Out[23]: array([1, 2, 3], dtype=int32)
+
+如果a.eval()不指定sess则调用默认会话，默认会话不默认生成，因此如果没有默认会话则会报错
+a.eval()
+Out[27]: ValueError: Cannot evaluate tensor using `eval()`: No default session is registered. 
+Use `with sess.as_default()` or pass an explicit session to `eval(session=sess)`
+with sess.as_default():
+    print a.eval()
+Out[28]: [1 2 3]
+
+#InteractiveSession会生成一个会话并注册为默认会话
+tf.InteractiveSession()
+Out[30]: <tensorflow.python.client.session.InteractiveSession at 0x7f70e6088c50>
+a.eval()
+Out[31]: array([1, 2, 3], dtype=int32)
+通过 tf.configproto可以配置生成的sess
+
+变量作用域
+	tf.get_variable()
+		tf.get_variable_scope().reuse == False，在作用域创建新变量,根据名称检查新变量在作用域是否已经存在冲突则报错
+		tf.get_variable_scope().reuse == True，重用作用域已经存在的变量，搜索已经存在的变量，如果不存在则报错
+	tf.variable_scope()
+		变量作用域前缀用于变量名,并且使用一个重用标签来区分以上的两种情况
+		
+tf.trian.Saver()
+	模型记录三个文件中
+		元数据
+			保存计算图结构信息
+		变量
+			使用一个SSTab存储(k,v)列表
+		checkpoint
+		
+tensorboard	
+	使用步骤
+		summary_writer=创建tf.summary.FileWriter对象，指定日志保存路径
+		tf.summary.* 定义summary操作
+		merged=tf.summary.merge/merge_all 将定义的所有or指定summary操作汇合为一个操作集合
+		summary=sess.run(merged) 执行操作集合中的操作，操作执行后生成了日志信息summary
+		summary_writer.add_summary(summary,sess.graph) 调用tf.summary.FileWriter对象将生成的日志信息写入磁盘,sess.graph保存指定计算图
+		tensorboard独立进程运行，读取日志可视化

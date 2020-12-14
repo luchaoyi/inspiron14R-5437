@@ -1,0 +1,111 @@
+git:工作目录（实际文件目录)-(git add )->变更暂存区（暂存变更索引）-(git ci )->版本库
+git rm/mv/diff 都是操作暂存区与工作目录的，commit后才有作用 --cache表示指定操作暂存区
+git blame -L 行数  文件名 追踪文件变化与提交者
+git bisect bad/good 指定好坏版本，在坏-->好版本之间执行二分搜索，来确定从哪里引入了bug  
+
+创建分支:
+(提交是一链接一链 ×-×-×，branch是开始分叉)
+(从某个提交开始创建分支)
+git branch [分支名] [提交名]
+git checkout [分支] 切换到某个分支，会将分支下的目录改变为当前分支之前提交的内容
+checkout -b 创建并切换到此分支
+工作目录下内容，将与切换到版本库一致，未提交内容会因此命令而损失。git会阻止这种损失的发生
+解决：1.先提交2. checkout -m 将更改合并到新分支工作目录，即更改被带了过去
+checkout -d，删除分支：只能删除非当前工作分支
+git可以检出提交，即不是分支名，只是提交（分支名只是指向一个提交），会创建一个匿名分支
+分支名，也只是一个指向一个分支的当前提交的指针，会一直随着提交而改变，想不变的可以自己打标签
+提交，分支就是一个树型结够，标签是不变的指针，HEAD，分支名等是变的指针
+git checkout . (或-- .）只通过git恢复工作区,所以备份代码时可以只备份.git
+git diff 比较差异 git diff /commit/commit1 commit2/--cache commit 
+
+合并:
+分支合并就是定位一个合并基础，将从合并基础到被合并分支最新提交直接的变化合并到合并分支
+resolve:找到共同祖父节点（分叉点），将变化合并
+recursive:有多个合并基础，先将共同的组成一个临时合并作为基础
+octopus:处理多个分支，多次调用 recursive 合并
+ours:
+subtree:
+git merge [-s][策略]
+如果两个分支，对都拥有的内容，做不同修改，合并时出现冲突。使用命令追踪冲突:
+git diff
+git log --merge
+git merge --squash 压制合并，将另一个分支多次提交的所有变化，引入到当前分支索引区，不创建提交，由自己创建提交， \ 
+只关心变化，不关心历史，最终只产生一个提交。
+
+
+更改提交:
+git reset --soft|--mixed|--hard 返回到某个提交版本
+git reflog包含版本库所有引用变化记录，然后通过git reset 重置HEAD引用的任意位置
+git cherry-pick master^ 选择master分支倒数第二个提交增加为当前提交
+git revert *(某个提交) 引入提交来抵消*提交的作用
+git ci --amend 不创建新的提交记录而是在最近提交修改
+git rebase 可以进行提交迁移
+git rebase -i 则可以通过编辑动作，进行对提交顺序修改，删除，合并等
+
+储藏:
+中断机制可以将当前工作先存储，然后开始别的工作，后面在恢复
+git stash save | pop | apply 
+
+
+远程版本库:
+开发版本: git init 
+裸版本:   git init --bare 不能进行开发动作，只能被push,clone,和fetch 
+git clone * 克隆的版本库会有指向远程源版本库，而远程源不会指向克隆
+git remote add * * 添加分支追踪远程版本库
+ex:
+git remote add origin ../tmp/public.git
+git remote update
+本地产生一个远程追踪分支remotes/origin/master，不用于开发，用于追踪远程变化,此时本地库与远程库建立了连接
+git push origin master 将master数据推送到了远程版本库，同时更新了本地远程追踪分支
+推送前：
+master多了新提交l1
+* [master] l1
+ ! [origin/master] 20160211
+ --
+ *  [master] l1
+ *+ [origin/master] 20160211
+推送后：
+保持一致
+ * [master] l1
+  ! [origin/master] l1
+  --
+  *+ [master] l1 
+查看远程提交情况：
+git ls-remote origin 
+git pull origin master 将远程提交拉回，并合并到某个分支(pull = fetch + merge)
+git fetch 获取远程数据不立即合并
+	
+bob配置文件
+[remote "origin"] #配置的是一个远程版本库信息
+#配置了一个远程追踪分支信息
+	url = /home/lcy/Cache/tmp/bob/../public.git
+#远程的 ref/heads/* -->本地追踪为 refs/remotes/origin/* 一一对应
+	fetch = +refs/heads/*:refs/remotes/origin/*
+
+
+#配置的是本地master分支信息
+#下面指定了master分支交互的remote分支信息
+[branch "master"]
+#配置master,在master 执行git push 不指定则推送到origin-->远程 
+	remote = origin
+#pull时这里指定了远程master分支，合并到本地master分支
+	merge = refs/heads/master
+#if rebase=true 则pull = fetch + rebase
+	rebase=true
+
+
+#hooks
+钩子可执行的unix脚本，与事件关联的钩子脚本，名称由功能决定的
+./hooks/ 
+例如:pre-commit脚本会在提交前出发，post-commit脚本在提交后触发
+脚本名称不是随便的
+
+git grep 搜索版本库
+git filter-branch 通过自定义命令操作不同git对象
+ex: git filter-branch --tree-filter 'rm -rf ./python' master
+
+
+
+
+
+

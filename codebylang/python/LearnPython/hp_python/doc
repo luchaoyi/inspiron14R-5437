@@ -1,0 +1,301 @@
+#本书示例代码见MastingPythonHP
+
+CPython:使用C语言实现的Python解释器，官方版Python具有GIL,属于栈式虚拟机.
+	矢量化操作	numpy
+	解释->编译 cython
+	GIL multiprocessing
+	考虑性能优化是否导致可维护性降低
+
+超线程技术(Hyperthread):
+	single cpu virtual second cpu .
+	两个线程的指令，交错(interleave)执行.
+	并使两个线程执行不同的操作使用不同的CPU部件.
+
+-------------------
+粗略测量时间
+	time.time():基本时间函数
+	timeit模块/在python中使用%timeit命令 timeit测试时会暂时禁用垃圾收集器
+		%timeit指令可以很方便地对单独表达式分析,%timeit -n 10 'a+=1'
+	/usr/bin/time -p/--verbose 注意直接用time是shell自带的没什么用处的time
+			Major (requiring I/O) page faults 指示了RAM中数据不存在而需要从磁盘读取数据.(缺页中断)
+			
+cProfile:分析函数时间消耗
+	python -m cProfile -s cumulative -o profile.stats *.py
+	runsnake工具对输出文件profile.stats可视化
+
+
+这段代码保证不使用性能分析工具时代码正常执行
+if 'profile' not in dir() or not hasattr(__builtins__,"profile"):
+    def profile(func):
+        def inner(*args,**kwargs):
+            return func(*args,**kwargs)
+        return inner
+	
+line_profiler:分析某个函数的每一行时间消耗
+	先用cProfile找到需要分析的函数，然后使用它对函数逐行分析
+	python从左到右支持短路运算，开销少的判断在开销大前面执行节省时间。#交换判断和循环顺序可能会提升代码性能
+	
+memory_profiler:内存消耗分析
+	mprof 工具可以绘制内存消耗分析图像，以函数为单位
+	使用%memit可以测量语句的RAM使用情况
+	
+heapy:观察堆中的对象，追踪内存泄漏
+	hey.setrelheap()创建一个内存使用参考点,后续调用hpy.heap()产生与参考点的差额,然后调用print h
+	
+dowser:长时间的持续观察指定的存活对象，可应用于长时间运行的系统
+dis.dis()，查看python虚拟机字节码
+	尽量使用内建函数代替自己编写python代码,内建函数大多高度优化并使用c语言编写.
+
+>>>code=compile("print 0",'','exec')#compile(source, filename, mode[, flags[, dont_inherit]]) -> code object #compile编译python代码为python字节码
+>>>eval(code)
+0
+>>>exec(code)
+0
+>>>import dis #dis将字节码翻译为可读类汇编形式
+code=compile("[x for x in range(10) if x>3]","","exec")
+dis.disassemble(code)
+  1           0 BUILD_LIST               0
+              3 LOAD_NAME                0 (range)
+              6 LOAD_CONST               0 (10)
+              9 CALL_FUNCTION            1
+             12 GET_ITER            
+        >>   13 FOR_ITER                24 (to 40)
+             16 STORE_NAME               1 (x)
+             19 LOAD_NAME                1 (x)
+             22 LOAD_CONST               1 (3)
+             25 COMPARE_OP               4 (>)
+             28 POP_JUMP_IF_FALSE       13
+             31 LOAD_NAME                1 (x)
+             34 LIST_APPEND              2
+             37 JUMP_ABSOLUTE           13
+        >>   40 POP_TOP             
+             41 LOAD_CONST               2 (None)
+             44 RETURN_VALUE   
+             
+	
+perf - Performance analysis tools for Linux	
+	man perf
+	perf stat	
+-------------------
+元组和列表都是数组
+	元组是不可变数组,非常轻量的数据结构,缓存于python运行时环境,使用元组时不需要访问内核分配内存,比列表更加节省内存.
+字典和数组
+	掩码操作只获取掩码1对应的位0b1111101&0b111=0b101=5,mask=0b111获取最低三位
+		num%8=num&0b111#7
+		
+		num%256=num&0b11111111#255
+迭代器和生成器
+	python支持a,b=b,a交换数据
+-------------------
+numpy
+		The power of NumPy is revealed when handling big arrays. If we increase the number of particles,we will notice a more significant performance boost.The true power of NumPy lies in its fast mathematical operations
+		使用c语言实现,包含了数据和矩阵类型，实现了一些常用的数学运算等模块。对于大数组，矩阵操作numpy有明显性能优势
+		能将数据连续存储在内存中并支持矢量化操作	
+		内存问题才是代码效率低下的决定性因素
+				
+	numpy 广播特性
+		数组是对应元素运算，如果不匹配时会发生广播
+			a
+			Out[29]: array([1, 2, 3])
+			a*2
+			Out[30]: array([2, 4, 6])
+			a*[2,2,2]
+			Out[31]: array([2, 4, 6])
+			
+		在索引时使用numpy.newaxis常数将引入额外的维度
+		
+			a[:,np.newaxis] #a.shape is (3,) -> a[np.newaxis,:].shape is (1, 3) 
+			Out[34]: 
+			array([[1],                                  
+				   [2],                   
+				   [3]])
+				   
+			a[np.newaxis,:]
+			Out[36]: array([[1, 2, 3]])
+			
+			a[:,np.newaxis]*a[np.newaxis,:]      #利用此等广播可减少循环
+			Out[37]: 
+			array([[1, 2, 3],             1 1 1        1 2 3
+				   [2, 4, 6],          => 2 2 2        1 2 3
+				   [3, 6, 9]])            3 3 3        1 2 3 
+
+
+	numexpr
+		numexpr可以将矢量表达式编译成非常高效的代码,numexpr考虑到了cpu cache,对于大矩阵有明显性能提升
+		evaluate('a+b',out=a) #矢量a+矢量b,输出到a
+		Out[38]: array([2, 4, 6])
+		a
+		Out[39]: array([2, 4, 6])
+		
+		numexpr可以对numpy表达式多倍加速
+		numexpr可以编译numpy的数组表达式
+		numexpr通过CPU cache优化和多核并行加速numpy的向量运算
+		
+		import numexpr
+		a=np.random.rand(10000)
+		b=np.random.rand(10000)
+		c=np.random.rand(10000)
+		ne.evaluate('a + b * c')
+
+-------------------
+cython
+
+	#下面的特殊语法称为缓冲区语法，通过指定数组元素的类型和维数来声明一个NumPy数组
+	#以这种方式定义的数组，其索引操作将将通过直接作用于底层内存，绕过了Python解释器有了的速度大大提升。
+	cimport numpy as c_np
+	cdef c_np.ndarray [double，ndim = 2] arr #二维数组，类型为double
+
+	
+	内存视图
+	cdef int[:] a
+	cdef double[:, :] b
+	内存视图是在某个内存区域维护引用的对象，它实际上并不拥有内存，但它可以读取和更改其内容
+	
+	import numpy as np
+	cdef int[:] arr
+	arr_np = np.zeros(10, dtype='int32')
+	arr = arr_np # We bind the array to the memoryview
+	
+	The new memoryview will share the data with the NumPy array.(内存视图和numpy array共享指向同样的内存区域)
+
+	Cython生成的c代码中会添加一些安全检查的代码(如,数组越界检查，除0检查等),Cython可以使用其编译器指令关闭这些检查以提高速度。添加编译器指令有三种不同的方法：
+			使用装饰器或上下文管理器
+			在文件开头使用注释
+			使用Cython命令行选项
+			
+	cython中使用OpenMP需要释放GIL:
+		with nogil:
+			for i in prange(size):
+				out[i] = inp[i]*inp[i]
+				
+		for i in prange(size, nogil=True):
+			out[i] = inp[i]*inp[i]
+			with gil:
+				x = 0 # Python assignment在没有GIL情况下，执行python语句会引发错误因此在此位置需使用 with gil重新启用GIL
+				
+ctypes
+	ctypes可以在python中load链接库,调用链接库的export函数.
+cffi	
+	让使用链接库的步骤更加简化
+	cffi的verify函数可以即时编译c代码
+	cffi.cdef定义全局C声明,声明的变量和函数在同一cffi对象的名字空间下全局有效	
+------------------
+计算密集型适合使用多核并行 ,python多进程
+I/O密集型适合使用单核并发执行,python多线程 
+
+并发
+	当运行I/O任务时我们能耦合事件循环和异步I/O来获得巨大的性能收益
+	通过信号量来限制同一时间能申请的资源，缓解压力.
+		如服务器建立网络的网络连接数，太多的连接导致频繁的上下文切换，太少的连接则I/O等待浪费时间
+并行
+	多进程并行多个python解释器,每个解释器都有自己的GIL
+	单机多进程共享数据的理想方式是底层共享同一份数据,拷贝传送数据开销很大
+	numpy对缓存更友好,对于单核还是多核都有一定的性能优势
+	
+	multiprocess.Queue可以在进程间传递任何可序列化python对象
+		序列化和反序列化有一定开销
+		同步保证进程安全有一定开销
+
+	multiprocess.Manager在进程之间共享更高级的python对象
+	使用Redis在进程间共享数据
+		可以跨语言,跨主机,跨平台共享数据.
+	multiprocessing.RawValue缺少同步原语,性能优异,适用于对于多进程良性竞争或无竞争数据共享
+	mmap模块使用内存映射文件共享数据,没有同步.
+		内存映射文件是具有像文件一样的接口的内存块
+	文件锁lockfile.FileLock(Filename)
+	
+协程&异步I/O
+
+事件循环编程有两种方式
+	1.回调函数
+	2.futures,一个异步函数返回一个future结构的promise,而不是实际结果。我们需要等待future被锁期待的值填充，在等待数据填充时可以执行其它运算。协程产生一个future通过yield让出控制权,待值准备好后事件循环会继续执行那个函数。			
+	
+计算型任务由于GIL的存在我们通常使用多进程来实现,IO型任务我们可以通过线程调度来让线程在执行IO任务时让出GIL。其实对于IO型任务我们还有一种选择就是协程，协程是运行在单线程当中的“并发”，协程相比多线程一大优势就是省去了多线程之间的切换开销，获得了更大的运行效率.协程的方式，调度来自用户可以实现高效的并发任务.
+
+	python2 yield
+		def t():
+			print "-1"
+			yield hello()
+			print "0"
+			w=yield
+			print "1"
+			print w
+			
+			
+		def hello():
+			return "HELLO"
+		a=t()
+		a.next()
+		-1
+		Out[53]: 'HELLO'  #hello函数执行
+		
+		
+		def hello():
+			yield "HELLO"
+		a=t()
+		a.next()
+		-1
+		Out[56]: <generator object hello at 0x7fb6daf99d70> #返回了一个生成器
+		
+		包含yield函数是一个生成器，调用后不运行生成一个生成器对象。
+		调用next()启动生成器,生成器运行到yield语句位置时将yield语句右边的值返回给调用者，然后控制切换到调用者。 #生成器->调用者
+		调用者得到返回值，执行操作，再次调用next()则控制切换到生成器，生成器从yield位置继续执行直到遇到下一个yield;
+		若调用者需要向生成器发送msg则调用send(msg),运行send后切换到生成器的yield位置将得到的值赋给yield左边的接受者;
+		若存在接受者而直接调用next(),接受者没有收到消息值为None,即next()可以使用send(None)代替,若yield没有右值则返回None
+		yield会将右值返回给调用者，然后将控制权交给调用者，调用者则发送消息到生成器将控制权交给生成器，生成器将收到消息赋给左值后继续执行	
+		协程协同，自行决定何时转交控制器，由用户自己调度。
+		
+		generator通过send接收用于 运算的数据，同时通过throw方法接受外部代码的控制以执行不同 的代码分支
+			send方法用于传递参数，实现与生成器的交互
+			stop用于停止生成器,stop可以在生成器内部引发一个GeneratorExit错误,如果再stop之后调用next，就会引发StopIteration错误
+			throw用于给生成器传递一个异常
+				
+	python3 yeild from 
+		yeild from语法可以实现将生成器函数中包括yield语句的逻辑封装到子生成器函数中。然后在子生成器外部放置其它业务逻辑。整个生成器函数（包含子生成器函数）对外是一个生成器函数。
+	python3.5 asyncio
+		使用async可以定义协程对象,协程遇到await，事件循环将会挂起该协程，执行别的协程，直到其他的协程也挂起或者执行完毕，再进行下一个协程的执行.即当遇到阻塞调用的函数的时候，使用await方法将协程的控制权让出，以便loop调用其他的协程。	
+		创建多个协程的列表，然后将这些协程注册到事件循环中,每当有任务阻塞的时候就await，然后其他协程继续工作.	
+		
+		asyncio.wait，通过它可以获取一个协同程序的列表，同时返回一个将它们全包括在内的单独的协同程序
+		asyncio.as_completed，通过它可以获取一个协同程序的列表，同时返回一个按完成顺序生成协同程序的迭代器,因此当你用它迭代时,会尽快得到每个可用的结果	
+		
+-------------------
+使用更少的RAM
+	数据有质量,数据越多移动起来越慢.
+	不完全载入内存加载部分数据，
+		使用内存映射文件
+		使用生成器来仅加载部分数据,进行部分计算，而不是一次性生成。
+	数值矩阵/数组,使用numpy数组可以大量节省时间和空间
+	Array模块创建一个连续的RAM块来保存底层数据,对它存储的对象解引用会创建python对象,因此不适合在它上做任何操作,只适合存储和传输数据.
+	使用Python 2.x，使用str比unicode节省RAM,程序中需要大量Unicode对象，升级到Python 3.3+可以大大节省内存
+	大量的二进制位串，numpy和bitarray具有以字节为单位的位的有效表示，Redis，它可以提供高效的位模式存储
+	
+	DAWG和trie结构共享字符串公共部分节省RAM,并提供公共前缀搜索
+		trie共享公共前缀
+		DAWG共享前缀和后缀
+	概率数据结构牺牲精确性换取时间和空间的节省
+		布隆过滤器	
+		基数估计
+			Q:估计庞大数据集有多少不同的元素/*len(set(data))*/,数据集过于庞大无法完全载入内存,排序计数不可行.
+			A0:数字是服从均匀分布的随机数字，一个比较简单的可行方案是：找出数据集中最小的数字。假如m是数值上限，x是找到的最小的数，则m/x是基数的一个估计,其实只有很少的数据集符合随机均匀分布这一前提.
+			A1:通过一个良好的哈希函数，可以将任意数据集映射成服从均匀分布的（伪）随机值。根据这一事实，可以将任意数据集变换为均匀分布的随机数集合，然后就可以使用上面的方法进行估计了.
+			A2:在随机数集合中，通过计算每一个元素的二进制表示的0前缀，设k为最长的0前缀的长度，则平均来说集合中大约有2^k个不同的元素.不是很理想的估计方法，和基于最小值的估计一样，这个方法的方差很大。另一方面，这个估计方法比较节省资源：对于32位的哈希值来说，只需要5比特去存储0前缀的长度.
+			A3:一个直观的改进方法就是使用多个相互独立的哈希函数：通过计算每个哈希函数所产生的最长0前缀，然后取其平均值可以提高算法的精度.从统计意义来说这种方法确实可以提高估计的准确度，但是计算哈希值的消耗比较大.
+			A4:随机平均使用一个哈希函数，但是将哈希值的区间按位切分成多个桶.例如我们希望取1024个数进行平均，那么我们可以取哈希值的前10比特作为桶编号，然后计算剩下部分的0前缀长度。这种方法的准确度和多哈希函数方法相当，但是比计算多个哈希效率高很多.
+			根据前10个位将hash值划分到1024个桶中,每个同统计最小k计算1024个桶的平均k，则每个桶中元素有2^k个，总共有m*2^k*0.79402个元素,m是桶数,这m=1024;统计分析显示这种预测方法存在一个可预测的偏差;魔法数字0.79402是对这个偏差的修正。
+			A5:群点会大大降低估计准确度；如果在计算平均值前丢弃一些特别大的离群值，则可以提高精确度.
+			A6:HyperLogLog论文中给出一种不同的平均值，使用调和平均数取代几何平均数,降低了误差.
+			
+	
+	
+	
+			
+
+			
+	
+
+	
+	
+	
+	
+	

@@ -1,0 +1,164 @@
+I
+rule
+	构图和计算分离，计算延迟
+	原子op
+	抽象设备，支持异构
+	抽象任务，PS基于任务		
+xla 线性代数优化编译器
+Protobuf
+gRpc
+II 系统架构
+	前端 model build graph 
+	---C API---
+		Swig自动生成了两个适配 (Wrapper) 文件
+			pywrap_tensorflow_internal.py : 负责对接上层 Python 调用
+			pywrap_tensorflow_internal.cc : 负责对接下层 C API 调用			
+				注册了函数符号表,实现Python 函数名 -  C 函数名的映射
+				pywrap_tensorflow_internal.cc仅仅负责 Python 函数到 C/C++ 函数调用的转发	
+		c_api.h
+			后端向前端开放的公共API接口
+		后端系统
+			NewSession使用SessionFactory多态创建不同类型的实例	
+			一次session.run(),称为一个Step
+			一个session只能运行一个图，一个图可以被多个session运行，图引用计数表示被几个session持有
+	后端 runtime exec graph
+		runtime garph的构造、传递、剪枝、优化、分裂、执行
+			client -> session ->master
+				client 将Protobuf格式的GraphDef序列化通过session传递到master
+				通信使用gRPC
+			master
+				首先对计算图优化
+					如公共表达式消除,常量折叠
+					根据fetches和feeds依赖关系剪枝full graph ->client graph
+				根据任务名称分裂client graph，注册到worker
+					图分裂后边跨设备，则插入send和recv节点通信
+					RegisterGraph到worker
+				RunGraph 启动worker
+			worker 每一个任务对应一个worker
+				master-worker 处理master请求 
+				worker-worker 交换数据，由接受方主动request
+				按照local device二次分裂子图，子图由Executor执行
+				执行子图，调度op的kernel实现
+			/master分裂到worker,worker分裂device/
+		kernel op(算子)的实现
+			大多基于Eigen::Tensor，也使用cuDNN, cuNCCL, cuBLAS	
+	/*
+	client -> session -> master =>workers  => executor(调用kernel op在device执行)   
+	*/
+III	编程模型
+	Python 前端
+		Operation - node
+			OpDef 描述了 OP 的静态属性信息
+			NodeDef描述了 OP 的动态属性值信息
+			type 计算类型
+			name 字符串标识
+ 		Tensor - edge
+ 			Operation -> Tensor -> Operation 
+ 			TensorShape 
+ 				size:n*c*h*w
+ 				dims:[n,c,h,w]
+ 				datatype:float32
+ 		Graph
+ 			持有Operation，Operation持有Tensor
+ 			每个Operation有一个id和name,Graph使用dict保存
+ 			相同类型的Operation划分到一个Collection
+ 			Operation工厂，创建Operation
+ 			Operation仓库，存储,检索,转换Operation
+ 	后端 C++
+ 		Edge 
+ 			普通边:用于承载数据的Tensor
+ 			控制依赖:不承载数据,用于表示节点间的执行依赖关系，Node之间无Tensor流动，只表示执行先后顺序
+ 			前驱节点->后继节点
+ 		Node 
+ 			持有NodeDef和OpDef,一个Node是一个Node也是一个Op
+ 			拥有多条边 
+ 				in_edges 输入边
+ 				out_edges 输出边
+ 		Graph 
+ 			Edge和Node的集合
+ 			拓扑排序，顺序启动Op,多个入度为0的Op将并行计算
+ 			start is Source Node; end is Sink Node
+ 			构图
+ 				Graph::AddNode 先放置节点
+ 				Graph::AddEdge 放置边连接节点
+ 		OpDef仓库 
+ 			在 C++ main函数之前使用REGISTER_OP 宏完成OpDef的注册 
+ 			Opdef is Op 的 define , 一个描述算子的关键信息json文件
+ 	device 设备规范描述 OP 存储或计算的设备的具体位置
+ 		同位关系，设备约束在OP在同一个设备上执行，一般用于关联OP
+ 	Variable 
+ 		拥有状态，特殊的OP，直接持有一个Tensor
+ 		普通的Tensor一个Step有效，而Variable一直有效，也可以存储到文件
+ 		Variable 可视为Tensor的包装器，	首先要运行初始化器填充它的类型，shape，初始化值
+ 		Identity OP 恒等变换，实现Variable 的读取，他将Variable转换为一个Tensor
+ 		trainable = True,训练变量
+ 	队列
+ 		特殊OP,关联OP有Enqueue,Dequeue,EnqueueMany,DequeueMany
+ 		异步协调和数据交换
+ 		QueueRunner 持有多个Enqueue OP,为每个Enqueue OP启动一个线程	
+ 	OP
+ 		REGISTER_OP is DSL, 将JSON str 解析为OpDef
+ 		OpDef OP的输入/输出参数信息,属性名列表,约束关系
+ 		OpShapeInferenceFn OP的Shape推算规则
+IV
+	local 
+		Client, Master, Worker 部署在同一台机器同一进程，DirectSession同时扮演这三个角色
+		DirectSession创建并持有一组线程
+		费用模型 OP编排
+		FullGraph -剪枝-> ClientGraph ->分裂->PartitionGraph ->Executor 拓扑排序执行子图
+		剪枝RewriteGraphForExecution 
+			根据fetches列表,反向搜索依赖的节点,直至feeds ,计算得到最小依赖的子图
+			1. 追加输入节点
+			2. 追加输出节点
+			3. 反向剪枝 DAG 反向的宽度优先遍历算法
+		SendOp
+			构造key，调用Rendezvous.Send，非阻塞发送数据
+		RecvOp
+			构造key,调用Rendezvous.RecvAsync取出Tensor
+	distributed
+		Master剪枝，分裂到Worker，Worker分裂到Device
+		两次分裂，一次剪枝，分裂插入SendOp和RecvOp
+		Cluster -> Job -> Task
+			目的相同的Task划分为一个Job,一般分为ps和worker
+				ps 模型参数存储和更新 IO密集型
+				worker 训练和推理 计算密集型
+			Cluster是Task的集合,每一个Task进程启动一个Server进程
+			Server进程提供MasterService和WorkerService服务，可扮演Master和Worker两种角色	
+			#Master/Worker是图执行模型，Cluster -> Job -> Task是集群管理模型，一个Task-Server进程提供Master/Worker功能
+	   	会话控制
+	   		GrpcSession, MasterSession和WorkerSession分别驻留在Client, Master, Worker,使用同一session_handle协同工作的			
+	   		tf.Session直接持有GrpcSession的句柄(指针)
+	   	#Server进行在服务器上创建MasterService和WorkerService服务实例，创建后才能提供服务
+	   	#服务创建后，每一次计算都是一个Session过程
+	   	#先有服务实例，后提供服务，每一次计算服务是一次Session过程
+	   	#Session是Master/Worker图执行模型下的概念
+	   	
+V 模型训练
+Optimizer.minimize
+	compute_gradients 反向计算图构造
+		首先构造虚拟反向子图#图结构反向
+		对虚拟反向子图拓扑排序
+		对正向的每一个OP调用其梯度函数，构造正向OP对应的局部反向子图，每一个OP都有一个梯度函数存储在梯度仓库，按照OP名称索引	
+			梯度函数(op,grad) 
+				grad * dop.output /dop.input 
+				grad是上一层传入的grad，链式法则,dop.output /dop.input是本op的梯度
+	apply_gradients 参数更新子图构造
+		compute_gradients根据loss和var_list =[v1,v2,...vn]构造了vars_and_grads = [(grad_v1, v1), (grad_v2, v2)...]
+		apply_gradients，迭代vars_and_grads对每个(grad_vi, vi)，构造使用梯度下降算法的参数更新子图	
+			var <- var - learning*grad_var
+	#compute_gradients构造了loss对参数的梯度计算子图，可以求解梯度
+	#apply_gradients 使用梯度计算子图，构造对参数执行梯度下降的更新子图，梯度下降优化
+load data
+	feed_dict 可替代任何Tensor的值，但一般仅替代Placeholder
+	数据通道
+		构造输入子图,并发从文件中读取数据,	使得训练过程不会因操作IO而阻塞
+		使用队列实现输入子图与训练/推理子图的数据交互与异步控制
+Saver
+	save Checkpoint
+		根据容错策略，周期性保存图的数据和元数据到持久化设备
+		变量数据以及元数据信息是分文件存储的
+		通过在图中插入关联的OP实现
+	restore
+		通过在图中插入关联的OP实现
+MonitoredSession 
+	可定制化hook，监听整个Session生命周期，可监听 报告 处理异常，重启Session
