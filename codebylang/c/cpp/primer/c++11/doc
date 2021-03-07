@@ -51,6 +51,7 @@
 				std::forward，右值返回右值引用，有条件的返回右值，主要用于模板,std::forward<T>,T由模板类型推断
 				move和forward运用的都是引用折叠和类型推导的规则，使用static_cast实现的，不产生任何汇编代码，不是运行时的概念
 				
+
 	移动构造函数的合成
 		没有定义析构\拷贝\op=  且 类的非静态数据成员都可以移动(有移动构造或可以合成移动构造) 编译器才可以默认合成
 		自定义了和移动则拷贝被默认删除，需要显式自定义
@@ -58,7 +59,7 @@
 	异常
 		移动操作，通常窃取资源而不分配资源，因此不抛出异常
 		不抛出异常的移动构造函数和移动赋值运算符必须标记为noexcept，某些STL容器仅对noexcept移动，否则执行拷贝
-		
+
 列表初始化
 	{}在c只能初始化数组，c++11引入了std::initializer_list<T>类型
 	编译器遇到{}初始化列表会生成initializer_list<T>对象，编译器会推导T的类型，当{}中元素类型不一致时会有warning,当类实现了以initializer_list<T>为参数的构造函数时则可以使用{}初始化
@@ -83,34 +84,58 @@ pod类型
 					
 类型推导*
 	类型推导增强了泛型表达能力，泛型+类型推导+<type_traits>，type_traits可获得类型以及相关的特性,泛型编程是动态类型的
-	auto 
-	decltype 
-		类型推导，获得表达式的类型
-		一般和using/typedef等联合使用		
-		不继承const volatile限定符号
-	auto+decltype可追踪模板函数的返回类型
-	泛型
-		鸭子类型(c++模板)
-			行为是鸭子的对象被认为是鸭子，没有限定类型的概念，只关心值以及它的行为	
-		非鸭子类型(c++非模板)
-			值首先被赋予了类型为鸭子，则值的行为由类型限定，关注类型匹配
-			
+	auto
+		推导规则类似模板参数推导规则
+		当不声明为指针或引用时，auto 的推导结果和初始化表达式抛弃引用和 cv 限定符后类型一致。
+		当声明为指针或引用时，auto 的推导结果将保持初始化表达式的 cv 属性。
+
+​		auto 值推导会产生副本
+​		auto& 左值引用
+
+​		const auto& 只读引用
+
+​		auto&& 完美引用，只读对象会推导出const auto& ，否则为非const左值/右值引用
+
+​	decltype 
+​		类型推导，获得表达式的类型
+​		一般和using/typedef等联合使用		
+​		不继承const volatile限定符号
+​	auto+decltype可追踪模板函数的返回类型
+
+```
+
+			template <typename Builder>
+			auto makeAndProcessObject (const Builder& builder) -> decltype( builder.makeObject() )
+			{
+				auto val = builder.makeObject();
+				// do stuff with val
+				return val;
+			}
+
+```
+
+​	泛型
+​		鸭子类型(c++模板)
+​			行为是鸭子的对象被认为是鸭子，没有限定类型的概念，只关心值以及它的行为	
+​		非鸭子类型(c++非模板)
+​			值首先被赋予了类型为鸭子，则值的行为由类型限定，关注类型匹配
+​			
 enum 
-	enum E{G,L,H}; / enum {G,L,H} 
-		继承自c语言的枚举，没有作用域的概念
-		进行数值运算时被隐式转换为int,不同类型的枚举可以互相比较而不报错
-		类中的enum可作为一个staic int的用法，E e; E是类型，e是变量而G,L,H是名字绑定<->值
-		enum {R,G,B};
-		R is 1 G is 2 B is 3, R,G,B名字绑定<->值在class外可视为一个#define 
-		class C{
-			enum {G = 1,L = 2,H =3}
+​	enum E{G,L,H}; / enum {G,L,H} 
+​		继承自c语言的枚举，没有作用域的概念
+​		进行数值运算时被隐式转换为int,不同类型的枚举可以互相比较而不报错
+​		类中的enum可作为一个staic int的用法，E e; E是类型，e是变量而G,L,H是名字绑定<->值
+​		enum {R,G,B};
+​		R is 1 G is 2 B is 3, R,G,B名字绑定<->值在class外可视为一个#define 
+​		class C{
+​			enum {G = 1,L = 2,H =3}
 
 		};
 		C::G is 1,C::L is 2, C::H is 3 , G,L,H名字绑定<->值在class内可视为一个staic int
 	enum class 	
 		c++11引入的强类型枚举属于c++的枚举
 		有作用域(因此必须有名字，否则什么都做不了)、隐式转换受限(可显式转换)、可指定底层类型(即枚举实际存储类型)
-		
+
 内存管理*
 	free/delete NULL是安全的，什么都不会发生，因此指针释放内存后建议若不销毁将指针置为NULL
 	解引用 NULL则造成Segmentation fault

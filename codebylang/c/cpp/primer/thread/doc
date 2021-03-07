@@ -50,7 +50,7 @@ thread
 	锁/原子操作/软件事物内存
 	::mutex
 		lock/unlock
-		标准库提供了RAII方式的lck_guard，不建议直接调用lock/unlock
+		标准库提供了RAII方式的lock_guard，不建议直接调用lock/unlock
 		#c++异常会打乱流程，因此c++的对称操作建议都使用RAII
 		被锁的变量要注意所有的访问，包括通过引用和指针(按引用、指针传递/返回等)，无漏之身
 		被保守的数据的指针和引用不要传递到保护范围之外
