@@ -36,6 +36,7 @@ block(进程)
 	所有wrap执行完毕才撤走释放资源,包含一组wrap,wrap太多被最慢wrap拖累的可能
 	被调度到SM执行，SM能一次调度的block是有限的
 	SM能并行执行的线程也受线程资源使用的约束
+	相同block的线程可sync
 	
 device内存层次
 	reg 局部变量

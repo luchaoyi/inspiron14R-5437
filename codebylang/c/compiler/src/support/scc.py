@@ -3,6 +3,8 @@
 
 根据定义求法 ：双向遍历求交集
 """
+#鲸书163 Tarjian算法寻找极大SCC
+
 #Tarjian 同处于一个SCC中的结点必然构成DFS树的一棵子树,我们要找SCC，就得找到它在DFS树上的根
 #dfs树上以u根节点子树，u的dfs序号时最小的
 #当遍历完一个节点u的子树时，u要回溯了，此时若dfn(u) == low(u) 则u到栈顶组成了一个强连通分量
@@ -27,7 +29,7 @@ void tarjan(int u):
         #dfn(v) is 0保证初次访问,且仅dfs搜索一次
         if !dfn(v) {
             tarjan(v)
-            low[u] = min(low[u], low[v]);
+            low[u] = min(low[u], low[v]);  #反向回退时将low[v]传播给low[u]
             }  
 
         #v已经访问过，说明u->v不是前向边, 若dfn序号更小且在栈中则通过后向边访问到了祖先
@@ -50,3 +52,18 @@ void tarjan(int u):
         #生成一个scc
         results.append(scc);
     }
+
+/*
+例子：
+SCC A->B->C->D->A
+开始dfs搜索:
+dfn 1 2 3 4  
+low 1 2 3 4
+D -> A遇到else if visit[A] is true 
+low D is equal to dfn[A] is 1
+dfs返回时, 1沿着链路回传
+low 1 1 1 1
+此时栈中[4,3,2,1]，的low[i]都为1，发现了从1到栈顶的一个SCC环路
+*/
+
+
